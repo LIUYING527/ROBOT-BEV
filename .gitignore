@@ -1,0 +1,19 @@
+# 原始数据（体量大，不入库；通过 rsync 拷到本地或软链接）
+data/color/*
+data/depth/*
+data/sensors/*
+!data/**/.gitkeep
+
+# 中间产物
+outputs/*
+!outputs/.gitkeep
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# 系统
+.DS_Store

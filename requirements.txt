@@ -1,0 +1,6 @@
+open3d>=0.17
+numpy
+opencv-python
+matplotlib
+pygame
+scipy
