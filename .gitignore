@@ -1,19 +1,41 @@
-# 原始数据（体量大，不入库；通过 rsync 拷到本地或软链接）
-data/color/*
-data/depth/*
-data/sensors/*
-!data/**/.gitkeep
+# ===== 大体量原始数据（不入库，通过 rsync / 软链接同步）=====
+data/
+bevlook_data.tar
+*.tar
+*.bag
+*.db3
 
-# 中间产物
+# ===== 第三方仓库（各自有独立 .git，体量巨大，单独 clone）=====
+third_party/
+
+# ===== 中间产物 / 重建结果 =====
 outputs/*
 !outputs/.gitkeep
 
-# Python
+# 大体量二进制（即便散落在别处也不入库）
+*.ply
+*.glb
+*.npz
+*.npy
+*.mp4
+*.gif
+*.pcd
+*.bin
+*.ckpt
+*.pth
+*.pt
+*.db
+
+# ===== Python =====
 __pycache__/
 *.py[cod]
+*.egg-info/
 .venv/
 venv/
-*.egg-info/
+.ipynb_checkpoints/
 
-# 系统
+# ===== 系统 / 编辑器 =====
 .DS_Store
+*.swp
+.idea/
+.vscode/

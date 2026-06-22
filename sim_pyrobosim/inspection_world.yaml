@@ -1,0 +1,74 @@
+# 巡检测试世界(pyrobosim)—— 路线1:干净2D测试台
+# 一条 ~20m 主走廊(对应 111450 真实来回路线)+ 两侧巡检分区 + 一个带激光的机器人。
+# 尺度参考 111450 真实重建(单程 ~26m,这里取 20m 便于展示)。
+
+params:
+  name: inspection_world
+  object_radius: 0.05
+  wall_height: 2.0
+
+robots:
+  - name: robot
+    radius: 0.3
+    location: corridor
+    color: "#CC00CC"
+    pose:
+      position: {x: -9.0, y: 0.0}
+    max_linear_velocity: 1.0
+    max_angular_velocity: 3.0
+    max_linear_acceleration: 2.0
+    max_angular_acceleration: 8.0
+    path_planner:
+      type: rrt
+      collision_check_step_dist: 0.05
+      max_connection_dist: 1.0
+      bidirectional: true
+      rrt_star: true
+      rewire_radius: 2.0
+    path_executor:
+      type: constant_velocity
+      linear_velocity: 0.32        # 用 111450 真实速度标定
+      max_angular_velocity: 3.0
+      dt: 0.1
+    sensors:
+      lidar:
+        type: lidar
+        update_rate_s: 0.1
+        angle_units: degrees
+        min_angle: -120.0
+        max_angle: 120.0
+        angular_resolution: 5.0
+        max_range_m: 6.0
+
+rooms:
+  - name: corridor
+    footprint: {type: box, dims: [20.0, 2.4]}
+    pose: {position: {x: 0.0, y: 0.0}}
+    wall_width: 0.2
+    color: "#9fb6c9"
+  - name: zone_A
+    footprint: {type: box, dims: [4.5, 4.5]}
+    pose: {position: {x: -7.0, y: 5.5}}
+    wall_width: 0.2
+    color: "red"
+  - name: zone_B
+    footprint: {type: box, dims: [4.5, 4.5]}
+    pose: {position: {x: 0.0, y: 6.0}}
+    wall_width: 0.2
+    color: "green"
+  - name: zone_C
+    footprint: {type: box, dims: [4.5, 4.5]}
+    pose: {position: {x: 7.0, y: 5.5}}
+    wall_width: 0.2
+    color: "blue"
+  - name: zone_D
+    footprint: {type: box, dims: [4.5, 4.5]}
+    pose: {position: {x: 3.0, y: -5.5}}
+    wall_width: 0.2
+    color: "#e08a1e"
+
+hallways:
+  - {room_start: corridor, room_end: zone_A, width: 1.2}
+  - {room_start: corridor, room_end: zone_B, width: 1.2}
+  - {room_start: corridor, room_end: zone_C, width: 1.2}
+  - {room_start: corridor, room_end: zone_D, width: 1.2}
