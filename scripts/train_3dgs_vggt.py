@@ -47,6 +47,13 @@ PRUNE = os.environ.get("PRUNE", "1") == "1"
 PRUNE_OP = float(os.environ.get("PRUNE_OP", "0.05"))
 PRUNE_SCALE = float(os.environ.get("PRUNE_SCALE", "0.3"))
 OUT = os.environ.get("OUT", f"outputs/gs_vggto_{SESSION}.ply")
+# 深度监督/正则/抗锯齿(治"针球":把高斯压到真实表面、删欠约束的胖飘高斯)
+DEPTH_SUP = os.environ.get("DEPTH_SUP", "0") == "1"   # 用ZED逐帧度量深度监督渲染深度
+DEPTH_W = float(os.environ.get("DEPTH_W", "0.5"))     # 深度损失权重
+ANTIALIAS = os.environ.get("ANTIALIAS", "0") == "1"   # gsplat antialiased(Mip-Splatting式)
+REG_SCALE = float(os.environ.get("REG_SCALE", "0.0")) # 尺度正则:罚超大高斯(归一化单位)
+REG_OPA = float(os.environ.get("REG_OPA", "0.0"))     # 不透明度二值化正则(逼向0/1,利剪枝)
+RASTER_MODE = "antialiased" if ANTIALIAS else "classic"
 RES_SCALE = UPSAMPLE / DS                       # 渲染/GT 相对 K 处理分辨率的缩放
 C0 = 0.28209479177387814                        # SH DC 系数 (1/(2*sqrt(pi)))
 
@@ -61,6 +68,35 @@ def ssim(a, b):
     vab = F.conv2d(a * b, win, padding=5, groups=3) - mu_a * mu_b
     s = ((2 * mu_a * mu_b + C1) * (2 * vab + C2)) / ((mu_a ** 2 + mu_b ** 2 + C1) * (va + vb + C2))
     return s.mean()
+
+
+import re
+_TS = re.compile(r"(\d{16,19})")
+
+
+def _build_pc_index():
+    """全局索引 {时间戳: pointcloud npz路径},供深度监督按帧名时间戳查ZED度量深度。"""
+    idx = {}
+    for p in glob.glob("data/*/pointcloud/zed/*.npz"):
+        m = _TS.search(os.path.basename(p))
+        if m:
+            idx[m.group(1)] = p
+    return idx
+
+
+def load_zed_depth(image_name, pc_index, Wr, Hr):
+    """读该帧 ZED 组织化点云的 z 通道(度量深度,单位由数据定,后续全局尺度吸收),
+    resize 到训练分辨率 (Wr,Hr)。返回 (depth[Hr,Wr] float32, mask[Hr,Wr] bool) 或 (None,None)。"""
+    m = _TS.search(os.path.basename(image_name))
+    if not m or m.group(1) not in pc_index:
+        return None, None
+    arr = np.load(pc_index[m.group(1)])["xyzrgba"]      # (720,1280,4) float16
+    z = arr[:, :, 2].astype(np.float32)                  # 光轴前向深度
+    valid = np.isfinite(z) & (z > 1e-3) & (z < 19990)    # 排除20m量程饱和钳值(非真表面)
+    z = np.where(valid, z, 0.0)
+    z = cv2.resize(z, (Wr, Hr), interpolation=cv2.INTER_NEAREST)
+    vm = cv2.resize(valid.astype(np.uint8), (Wr, Hr), interpolation=cv2.INTER_NEAREST) > 0
+    return z, vm
 
 
 def main():
@@ -139,6 +175,41 @@ def main():
     views = nv
     np.save(OUT + ".norm.npy", np.concatenate([center, [s]]))
     scene_scale = 1.0
+
+    # ---- 深度监督准备:估全局尺度 m(米制/归一化) + 缓存各帧归一化深度 ----
+    depths = {}
+    if DEPTH_SUP:
+        pc_index = _build_pc_index()
+        raw = {}
+        for (name, K, Vn, W, H) in views:
+            zmet, vmask = load_zed_depth(name, pc_index, Wr, Hr)
+            if zmet is not None:
+                raw[name] = (zmet, vmask)
+        # 用稀疏点投影到若干帧, 比对ZED米制深度估尺度
+        Psub = P if len(P) < 60000 else P[np.random.choice(len(P), 60000, replace=False)]
+        ratios = []
+        for (name, K, Vn, W, H) in views[::max(1, len(views) // 25)]:
+            if name not in raw:
+                continue
+            zmet, vmask = raw[name]
+            Ks = K.copy().astype(np.float64); Ks[:2] *= RES_SCALE
+            Pc = Vn[:3, :3].astype(np.float64) @ Psub.T.astype(np.float64) + Vn[:3, 3:4].astype(np.float64)
+            zc = Pc[2]; uv = Ks @ Pc
+            u = uv[0] / np.maximum(uv[2], 1e-6); v = uv[1] / np.maximum(uv[2], 1e-6)
+            ii = (zc > 1e-3) & (u >= 0) & (u < Wr) & (v >= 0) & (v < Hr)
+            if ii.sum() < 20:
+                continue
+            uu = u[ii].astype(int); vv = v[ii].astype(int); zn = zc[ii]
+            dm = zmet[vv, uu]; mk = vmask[vv, uu] & (dm > 1e-3)
+            if mk.sum() >= 20:
+                ratios.extend((dm[mk] / zn[mk]).tolist())
+        m_scale = float(np.median(ratios)) if ratios else 1.0
+        print(f"[depth] 全局尺度 m={m_scale:.4f}(米制深度/归一化深度) 样本{len(ratios)}", flush=True)
+        for name, (zmet, vmask) in raw.items():
+            zn = zmet / max(m_scale, 1e-6)
+            depths[name] = (torch.tensor(zn, dtype=torch.float32, device=DEV),
+                            torch.tensor(vmask, device=DEV))
+        print(f"[depth] 缓存归一化深度 {len(depths)}/{len(views)} 帧  权重{DEPTH_W} 抗锯齿{ANTIALIAS}", flush=True)
     pt = torch.tensor(P, device=DEV)
     sub = pt[torch.randperm(len(pt))[:4000]]
     nn3 = torch.cdist(sub, pt).topk(4, largest=False).values[:, 1:].mean(dim=1)
@@ -180,24 +251,43 @@ def main():
         Ks[:2] *= RES_SCALE                                    # K 同步缩放到训练分辨率
         Ks = Ks[None]
         vm = torch.tensor(V, device=DEV)[None]
+        rmode = "RGB+ED" if DEPTH_SUP else "RGB"
         if SH_DEGREE > 0:
             cur_deg = min(SH_DEGREE, step // sh_step)
             colors = torch.cat([params["sh0"], params["shN"]], dim=1)   # (N,K,3)
             render, alpha, info = rasterization(
                 params["means"], F.normalize(params["quats"], dim=-1),
                 torch.exp(params["scales"]), torch.sigmoid(params["opacities"]),
-                colors, vm, Ks, Wr, Hr, sh_degree=cur_deg, packed=False)
+                colors, vm, Ks, Wr, Hr, sh_degree=cur_deg, packed=False,
+                render_mode=rmode, rasterize_mode=RASTER_MODE)
         else:
             render, alpha, info = rasterization(
                 params["means"], F.normalize(params["quats"], dim=-1),
                 torch.exp(params["scales"]), torch.sigmoid(params["opacities"]),
-                params["colors"], vm, Ks, Wr, Hr, packed=False)
+                params["colors"], vm, Ks, Wr, Hr, packed=False,
+                render_mode=rmode, rasterize_mode=RASTER_MODE)
         info["means2d"].retain_grad()
         gt = imgs[name]
-        pred = render[0].clamp(0, 1)
+        pred = render[0][..., :3].clamp(0, 1)
         l1 = (pred - gt).abs().mean()
         a = pred.permute(2, 0, 1)[None]; b = gt.permute(2, 0, 1)[None]
         loss = 0.8 * l1 + 0.2 * (1 - ssim(a, b))
+        # 深度监督:渲染期望深度对齐ZED度量深度(把高斯压到真实表面→消针球),仅在alpha高处
+        if DEPTH_SUP and name in depths:
+            dpred = render[0][..., 3]
+            dz, dmask = depths[name]
+            amask = alpha[0, ..., 0] > 0.5
+            mk = dmask & amask
+            if mk.any():
+                e = (dpred[mk] - dz[mk]).abs()
+                d = 0.1
+                loss = loss + DEPTH_W * torch.where(e < d, 0.5 * e * e / d, e - 0.5 * d).mean()
+        # 尺度正则:罚超大高斯(欠约束的胖飘片) / 不透明度二值化(逼向0/1,利剪枝)
+        if REG_SCALE > 0:
+            loss = loss + REG_SCALE * torch.exp(params["scales"]).mean()
+        if REG_OPA > 0:
+            o = torch.sigmoid(params["opacities"]).clamp(1e-4, 1 - 1e-4)
+            loss = loss + REG_OPA * (-(o * torch.log(o) + (1 - o) * torch.log(1 - o))).mean()
         strategy.step_pre_backward(params, optimizers, state, step, info)
         loss.backward()
         strategy.step_post_backward(params, optimizers, state, step, info, packed=False)

@@ -15,17 +15,20 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--a_stride", type=int, default=3)    # 114830 前段(走廊)抽帧步长
+    ap.add_argument("--a_stride", type=int, default=3)    # 114830 抽帧步长
     ap.add_argument("--b_stride", type=int, default=9)    # 113628 抽帧步长
+    ap.add_argument("--a_end", type=int, default=288)     # 114830 用到第几帧(前向锚)
+    ap.add_argument("--b_end", type=int, default=853)     # 113628 用到第几帧(侧扫覆盖)
+    ap.add_argument("--tag", default="")                  # 输出目录后缀(空=_colmap_joint,避免覆盖旧模型)
     args = ap.parse_args()
-    work = os.path.join(ROOT, "outputs", "_colmap_joint")
+    work = os.path.join(ROOT, "outputs", "_colmap_joint" + (("_" + args.tag) if args.tag else ""))
     img_dir = os.path.join(work, "images")
     if os.path.exists(work):
         shutil.rmtree(work)
     os.makedirs(img_dir)
 
-    A = sorted(glob.glob(os.path.join(ROOT, "data", "114830", "images", "zed", "*.jpg")))[0:288][::args.a_stride]
-    B = sorted(glob.glob(os.path.join(ROOT, "data", "113628", "images", "zed", "*.jpg")))[0:853][::args.b_stride]
+    A = sorted(glob.glob(os.path.join(ROOT, "data", "114830", "images", "zed", "*.jpg")))[0:args.a_end][::args.a_stride]
+    B = sorted(glob.glob(os.path.join(ROOT, "data", "113628", "images", "zed", "*.jpg")))[0:args.b_end][::args.b_stride]
     for p in A:
         os.symlink(os.path.abspath(p), os.path.join(img_dir, "A_" + os.path.basename(p)))
     for p in B:

@@ -3,7 +3,7 @@
 产出 outputs/vggto_colmapjoint/{cameras.npz(world2cam+K), recon.ply(BA稀疏点), frames_zed/}。
 用法: ~/discoverse_venv/bin/python scripts/build_colmap_session.py
 """
-import os, glob, shutil
+import os, glob, shutil, sys
 import numpy as np
 import pycolmap
 
@@ -11,16 +11,18 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def main():
-    work = os.path.join(ROOT, "outputs", "_colmap_joint")
+    tag = sys.argv[1] if len(sys.argv) > 1 else ""        # 空=_colmap_joint;"dense"=_colmap_joint_dense
+    work = os.path.join(ROOT, "outputs", "_colmap_joint" + (("_" + tag) if tag else ""))
+    sess = "colmapjoint" + (("_" + tag) if tag else "")
     recs = {int(os.path.basename(d)): d for d in glob.glob(os.path.join(work, "sparse", "*")) if os.path.isdir(d)}
     rec = None; best = -1
     for d in recs.values():
         r = pycolmap.Reconstruction(d)
         if r.num_reg_images() > best:
             best = r.num_reg_images(); rec = r
-    print(f"[colmap2gs] 最大模型 注册{rec.num_reg_images()}张 3D点{rec.num_points3D()}")
+    print(f"[colmap2gs] {work} 最大模型 注册{rec.num_reg_images()}张 3D点{rec.num_points3D()}")
 
-    out = os.path.join(ROOT, "outputs", "vggto_colmapjoint")
+    out = os.path.join(ROOT, "outputs", f"vggto_{sess}")
     fz = os.path.join(out, "frames_zed")
     if os.path.exists(out):
         shutil.rmtree(out)
