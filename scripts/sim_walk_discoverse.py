@@ -41,34 +41,48 @@ def main():
     ap.add_argument("--height", type=int, default=720)
     ap.add_argument("--full", action="store_true",
                     help="渲完整往返(默认只渲前向去程,返程因3DGS前视欠观测会糊)")
+    ap.add_argument("--compare", action="store_true",
+                    help="双层对比: 每帧同位姿渲 左=几何物理 右=3DGS皮肤, 拼接成 sim_compare_<s>.mp4")
     args = ap.parse_args()
 
     env, W = make_env(args.session, width=args.width, height=args.height)
     wp, yaw = W["waypoints_xy"], W["yaw"]
+    # yaw 直接用 align 存的**相机实际朝向**(npz), 不再从waypoint切向重算
+    # (近直线/抖动轨迹下切向yaw会乱转→相机拍进墙里糊;相机朝向=3DGS被观测处=清晰)
     if not args.full:
         # 只取去程:从起点到离起点最远的 waypoint(覆盖最好的前向扫掠)
         far = int(np.argmax(np.linalg.norm(wp - wp[0], axis=1)))
         wp, yaw = wp[:far + 1], yaw[:far + 1]
-        # 朝向用相邻位移重算 + 平滑(去掉掉头处噪声)
-        d = np.diff(wp, axis=0)
-        yaw = np.arctan2(d[:, 1], d[:, 0])
-        yaw = np.concatenate([yaw, yaw[-1:]])
-        ku = np.unwrap(yaw)
-        kk = np.convolve(ku, np.ones(5) / 5, mode="same")
-        yaw = kk
         print(f"[sim] 去程 waypoints {len(wp)} (到最远点 idx={far})", flush=True)
     poses, yaws = resample(wp, yaw, args.nframes)
 
-    out = os.path.join(ROOT, "outputs", f"sim_walk_{args.session}.mp4")
+    tag = "compare" if args.compare else "walk"
+    out = os.path.join(ROOT, "outputs", f"sim_{tag}_{args.session}.mp4")
     # H.264 + yuv420p + faststart:浏览器/QuickTime/Windows 通用可播(cv2 的 mp4v 浏览器不认)
     import imageio.v2 as imageio
     writer = imageio.get_writer(out, fps=30, codec="libx264",
                                 output_params=["-pix_fmt", "yuv420p", "-movflags", "+faststart", "-crf", "23"])
-    print(f"[sim] rendering {args.nframes} frames @ {args.width}x{args.height} ...", flush=True)
+    mode = "双层对比(左几何/右皮肤)" if args.compare else "3DGS皮肤"
+    print(f"[sim] rendering {args.nframes} frames @ {args.width}x{args.height} [{mode}] ...", flush=True)
+
+    def _label(img, text):
+        cv2.putText(img, text, (12, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 0, 0), 4, cv2.LINE_AA)
+        cv2.putText(img, text, (12, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 255, 255), 2, cv2.LINE_AA)
+        return img
+
     for i in range(args.nframes):
         env.set_pose(poses[i, 0], poses[i, 1], yaws[i])
-        env.render()
-        img = env.frame()                      # RGB uint8
+        if args.compare:
+            env.show_gaussian_img = False
+            env.render(); geom = _label(env.frame().copy(), "Geometry (physics)")
+            env.show_gaussian_img = True
+            if hasattr(env, "gs_renderer"):
+                env.gs_renderer.need_rerender = True
+            env.render(); skin = _label(env.frame().copy(), "3DGS skin")
+            img = np.hstack([geom, skin])
+        else:
+            env.render()
+            img = env.frame()                  # RGB uint8
         writer.append_data(img)
         if i % 30 == 0:
             print(f"  {i}/{args.nframes}  pose=({poses[i,0]:.1f},{poses[i,1]:.1f},{np.degrees(yaws[i]):.0f}deg)"

@@ -6,6 +6,74 @@
 
 ---
 
+## 2026-06-24（周二）—— 用上深度 + 多采集合并 + COLMAP联合BA + 闭环测试场接口
+
+**澄清的真目标**：仿真器=**闭环测试场**(现场实测难→仿真里测训好的模型),要点是**仿真精度够测试可信**(几何/观测对得上真实),物理碰撞不是难点。策略输入=BEV/占据(几何,视角无关)+VLM吃FPV-RGB。
+
+**做了什么**
+- **用上ZED深度等数据**(之前只用mono):ZED每帧度量点云96-98%有效+IMU+轮速里程计。`fuse_zed.py`(VGGT位姿融ZED深度,REFINE帧到模型ICP)、`zed_world.py`(→世界帧)、`dense_map.py`(Poisson网格)、`occupancy_bev.py`(几何→BEV占据)。**ZED真彩**:rgba打包在float16坏了→改从同名RGB图按像素对应取色(`decode_zed_npz`)。
+- **多采集合并**:114830(朝前)+113628(横看侧面)是**同一走廊不同轨迹、有重叠、视角互补**。FGR+ICP配准成功(rmse6.5cm,`_reg_T_113628d_to_114830c.npy`),合并`corridor_merged.ply`。但**统一3DGS糊**(loss0.2,VGGT前馈位姿松~0.4m→多视角对不齐;`build_unified.py`)→证伪"训练能救松位姿"。
+- **COLMAP联合BA(治糊关键)**:`colmap_joint.py` 对两段191帧exhaustive匹配+全局BA→**165帧注册进同一连通模型(114830:96/96,113628:69/95),厘米级紧位姿**。这正是VGGT前馈给不了的。`build_colmap_session.py`导成训练格式,待训锐利统一3DGS。
+- **闭环测试场接口** `test_env.py` `CorridorTestEnv`:reset/step(v,ω)→obs{fpv:3DGS, bev:占据窗, pose}+碰撞/到达判定;脚本策略跑通闭环demo。模型插进来即可测。
+
+**关键结论**：①3DGS锐利只来自单段自洽位姿(114830c loss0.06照片级);多段照片级需紧位姿=COLMAP-BA(已拿到)。②VGGT-Ω强在快/单段,弱在厘米级紧+跨段联合→COLMAP补这块,互补。③双层:单段锐3DGS皮肤(VLM)+合并几何(DiffusionDrive BEV,视角无关)。
+
+**坑**：启server别同bash内`pkill -f sim_walk_server`(杀自己);EGL_BAD_ACCESS换没跑过的GPU+彻底清进程;CUDA_VISIBLE_DEVICES=N时MUJOCO_EGL_DEVICE_ID=0;COLMAP CPU匹配OPENBLAS_NUM_THREADS=1防崩。
+
+**下一步**：用COLMAP紧位姿训锐利统一3DGS(逼近"到处清晰"的B);抠人;接DiffusionDrive/VLM真测。
+
+---
+
+## 2026-06-23（周一，下午）—— 双层仿真器跑通(干净几何物理层 + 3DGS可切换皮肤 + MMK2四轮车)
+
+**背景**：用户看完 hq 后反馈「c 比 hq 好看」「还是要 DISCOVERSE 官网那种真仿真器」「为什么我们渲得差」。讲透根因=**3DGS 糊是单程前视采集欠观测的物理上限**(hq 过参数化反更糊),「没仿真感」=场景零碰撞几何。用户拍板**双层都要**(几何物理底座+3DGS皮肤),机器人用 DISCOVERSE 自带四轮车外观+我们(v,ω)底盘,只保碰撞不要动量。计划 `eager-dancing-unicorn.md`。
+
+**做了什么**(A→D 四步全通)
+- **A 几何拟合** `scripts/fit_world_geometry.py`：从 `gs_vggto_114830c_world.ply`(100万高斯)去噪(opacity>0.15+scale<0.3+统计离群+轨迹bbox裁剪)→**用「相对平滑中心线的带符号横向偏移」找两墙**(非全局x直方图,对走廊弯曲鲁棒)→重度平滑去抖。两墙各19段/高2.04/厚0.12,走廊宽3.6m;障碍盒 DBSCAN 聚类 + **剔除压在轨迹0.6m内的挡路噪声盒**(真实障碍贴墙在路侧)→9盒。出 `world_geometry_114830c.json` + `_check.png`。
+- **B+C MJCF/物理** 重写 `scripts/sim_walk_common.py`：build_mjcf 读 json 生成墙/盒的 collision+visual geom(airbot class约定)+棋盘地+headlight环境光;机器人外观换 **MMK2 移动底座**(`models/meshes/mmk2/` 的 agv底座+4脚轮+2驱动轮 mesh,纯视觉,rm2_car mesh缺失改用mmk2)+碰撞盒;物理 `updateControl` 从写qvel改**写 mj_data.ctrl 配 velocity actuator**(DISCOVERSE每子步覆盖qvel→必须走ctrl接触力才顶得住)。
+- **D 切换+交付** `sim_walk_server.py` 加 `/toggle` 路由翻 `show_gaussian_img`+HTML按钮/T键;`sim_walk_discoverse.py` 加 `--compare`(同位姿渲几何+皮肤左右拼接)。
+
+**产出**：`outputs/sim_compare_114830c.mp4`(左几何/右皮肤对比,150帧)、`world_geometry_114830c.json`、`_compare_sheet.png`(汇报可用)。
+
+**验证**：✅几何视图=干净游戏关卡走廊(两墙+棋盘地+障碍盒);✅3DGS皮肤照片级;✅**物理碰撞**(朝墙开8s只移2m被挡住不穿墙,朝前自由前进7.4m);✅server `/toggle` 交替0/1、`/cmd` 200。
+
+**坑/解法**
+- 起点全黑:npz `yaw[0]` 是噪声(首waypoint差分极小)→相机背对走廊。用「首个离起点≥1m的前方路点」定开局朝向(server已有);别给 robot body 加 `euler` 否则与 set_pose 的 jyaw **双重旋转**。
+- align 走 SH 旋转分支缺 `einops`/`e3nn`(上午已装)。
+- rm2_car mesh 不在 checkout(仅可选下载)→改用齐全的 mmk2 mesh。
+
+**下一步**：用户验收双层效果;接 DiffusionDrive/VLM 把几何层当训练台;Phase E 重建兜底(全段-中间有人段)按需。
+
+---
+
+## 2026-06-23（周一）—— 高质量重建 114830hq 跑通(4 大糊源旋钮全开)
+
+**做了什么**(承接 recon-quality-knobs 计划:把喂给仿真器的基础数据做"尽可能好",物理岔路暂缓)
+- 新 session `114830hq`(隔离,不覆盖 114830c 好对比),走通整条 VGGT-Ω→3DGS→对齐→穿行:
+  - **旋钮2 加密帧**:抽 **128 帧**(vs c 的 64)→ `run_vggto`(res512,峰值显存 16.8G)→ `recon.ply` **23.7M 点**(比 64 帧稠密 ~2×)。
+  - **旋钮1 全分辨率训练**:`train_3dgs_vggt.py` 加 `UPSAMPLE` 支路,K 与渲染分辨率 688×384 → **1280×714**(读全分辨率 GT)。
+  - **旋钮3 SH degree 3**:加 `sh0/shN` 参数 + SH 阶数 warmup;导出 f_dc+f_rest(通道优先,`shN.transpose(1,2)`)对齐 util_gau。
+  - **旋钮4 剪枝**:导出前剔除 op<0.05 / scale>0.3 浮点高斯。
+  - 训练 20k iters,INIT_PTS 70万 → 密化到 **214万 → 剪枝后 132万**高斯,loss~0.05–0.13。
+  - `align_gs_world` 烘世界帧(k=9.52,跨度 10.1×35.5m);`sim_walk_discoverse` 渲 180 帧穿行。
+
+**产出**:`outputs/gs_vggto_114830hq.ply`(326MB,SH3)、`gs_vggto_114830hq_world.ply`、`sim_world_114830hq.npz`、`sim_walk_114830hq.mp4`、**`compare_hq_vs_c.png`(hq上/c下 对比图,汇报可用)**。
+
+**结论**
+- ✅ 四个糊源旋钮全部跑通且有效:对比图里 hq 明显更锐(管道/墙体结构清晰、绿地面有视角相关反光高光=SH 生效),c 偏糊发雾、有重影。
+- ✅ 顺带实测确认:**DISCOVERSE 的 MuJoCo 渲染路径确实按视角评估 SH**(hq 穿行 nonblack 96–100%,反光随视角变)——之前 recon-quality-knobs 里待实测的疑问解决。
+- 注意:对比图两段轨迹帧数不同(c 64 / hq 128),非严格同位姿,只看质量趋势;要严格同位姿对比可让 c 的 ply 沿 hq 轨迹渲(下一步可选)。
+
+**坑/解法**
+- align 第一次走到 SH 旋转分支,缺 `einops` + `e3nn`(transform_shs 用 Wigner-D 旋转 SH 系数)→ pip 装进 `~/discoverse_venv` 解决。之前 64 帧无 SH 版 f_rest 为空,走不到这段所以没暴露。
+- `train_3dgs_vggt.py` 保持 `SH_DEGREE=0` 与旧行为完全兼容(走 colors 预计算路径,不写 f_rest)。
+
+**下一步**
+- 可选:严格同位姿 hq-vs-c 对比图;把 hq 资产拷本地仿真器;更高 iters/更密帧继续压糊。
+- 物理岔路(sim-no-physics-fork)仍待用户拍板:干净几何世界 vs 3DGS+隐形碰撞代理 vs 双层。
+
+---
+
 ## 2026-06-22（周日）—— 去人版 114830c 全流程跑通 + 明确本地交互仿真需求
 
 **做了什么**

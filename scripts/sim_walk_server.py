@@ -36,9 +36,10 @@ HTML = """<!doctype html><html><head><meta charset=utf-8>
 img{max-width:98vw;max-height:86vh;margin-top:6px;background:#000}
 #hud{padding:6px;font-size:14px}kbd{background:#333;border-radius:4px;padding:1px 6px}</style></head>
 <body>
-<div id=hud>真实 DISCOVERSE 仿真器(VGGT→3DGS 场景) ·
+<div id=hud>真实 DISCOVERSE 仿真器(双层:几何物理 + 3DGS皮肤) ·
 <kbd>W</kbd>/<kbd>S</kbd> 前后 · <kbd>A</kbd>/<kbd>D</kbd> 转向 · <kbd>Shift</kbd> 加速 · <kbd>R</kbd> 回起点 ·
-<span id=st>v=0 w=0</span></div>
+<kbd>T</kbd> 切换图层 · <button id=tg onclick="tog()">切换图层</button> ·
+<span id=st>v=0 w=0</span> · <b><span id=ly>图层:3DGS皮肤</span></b></div>
 <img id=v src="/stream">
 <script>
 let keys={};
@@ -50,8 +51,11 @@ function send(){
  document.getElementById('st').textContent='v='+v.toFixed(1)+' w='+w.toFixed(1);
  fetch('/cmd?v='+v+'&w='+w);
 }
+function tog(){fetch('/toggle').then(r=>r.text()).then(t=>{
+ document.getElementById('ly').textContent='图层:'+(t==='1'?'3DGS皮肤':'几何物理');});}
 addEventListener('keydown',e=>{let k=e.key.toLowerCase();
  if(k==='r'){fetch('/cmd?reset=1');return;}
+ if(k==='t'){tog();return;}
  if(!keys[k]){keys[k]=1;send();}});
 addEventListener('keyup',e=>{keys[e.key.toLowerCase()]=0;send();});
 addEventListener('blur',()=>{keys={};send();});
@@ -69,9 +73,19 @@ class H(BaseHTTPRequestHandler):
             self.send_response(200); self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(body))); self.end_headers()
             self.wfile.write(body)
+        elif u.path == "/toggle":
+            global ENV
+            with LOCK:
+                ENV.show_gaussian_img = not ENV.show_gaussian_img
+                if hasattr(ENV, "gs_renderer"):
+                    ENV.gs_renderer.need_rerender = True
+                cur = "1" if ENV.show_gaussian_img else "0"
+            body = cur.encode()
+            self.send_response(200); self.send_header("Content-Type", "text/plain")
+            self.send_header("Content-Length", str(len(body))); self.end_headers()
+            self.wfile.write(body)
         elif u.path == "/cmd":
             q = parse_qs(u.query)
-            global ENV
             if "reset" in q:
                 with LOCK:
                     ENV.set_pose(START[0], START[1], START[2]); ENV.cmd[:] = 0
@@ -87,9 +101,14 @@ class H(BaseHTTPRequestHandler):
             self.end_headers()
             try:
                 while True:
-                    with LOCK:
-                        ENV.step()
-                        img = ENV.frame()
+                    try:
+                        with LOCK:
+                            ENV.step()
+                            img = ENV.frame()
+                    except Exception as e:           # 渲染/切图层出错→跳过本帧,别挂流
+                        sys.stderr.write(f"[stream] render err: {e}\n"); time.sleep(0.05); continue
+                    if img is None:
+                        time.sleep(0.03); continue
                     ok, jpg = cv2.imencode(".jpg", img[:, :, ::-1], [cv2.IMWRITE_JPEG_QUALITY, 80])
                     if not ok:
                         continue
@@ -108,12 +127,21 @@ def main():
     ap.add_argument("--port", type=int, default=8000)
     ap.add_argument("--width", type=int, default=960)
     ap.add_argument("--height", type=int, default=540)
+    ap.add_argument("--skin_only", action="store_true",
+                    help="跳过几何物理层(无墙/盒/碰撞),纯 3DGS 皮肤自由驾驶")
     args = ap.parse_args()
 
     global ENV, START
-    ENV, W = make_env(args.session, width=args.width, height=args.height, fps=30)
+    ENV, W = make_env(args.session, width=args.width, height=args.height, fps=30,
+                      skin_only=args.skin_only)
     wp, yaw = W["waypoints_xy"], W["yaw"]
-    START = (float(wp[0, 0]), float(wp[0, 1]), float(yaw[0]))
+    # 开局朝行进方向(录制的 yaw[0] 往往背对走廊→全黑):取第一个离起点≥1m 的前方路点定朝向
+    fwd = wp[0]
+    for j in range(1, len(wp)):
+        if np.hypot(wp[j, 0] - wp[0, 0], wp[j, 1] - wp[0, 1]) >= 1.0:
+            fwd = wp[j]; break
+    start_yaw = float(np.arctan2(fwd[1] - wp[0, 1], fwd[0] - wp[0, 0]))
+    START = (float(wp[0, 0]), float(wp[0, 1]), start_yaw)
     ENV.set_pose(*START)
     ENV.render()
     print(f"[server] 仿真器就绪。浏览器打开 http://<服务器IP>:{args.port}  (或 ssh -L {args.port}:localhost:{args.port})", flush=True)

@@ -70,11 +70,17 @@ def main():
     save_ply(gd, ply_out)
     print(f"[ok] world ply -> {ply_out}")
 
-    # 5) 机器人轨迹 waypoints(world)= k*rz_cam + t,yaw 由相邻 xy 切向
+    # 5) 机器人轨迹 waypoints(world)= k*rz_cam + t
     wp = (rz_cam * k) + t_world
-    d = np.diff(wp[:, :2], axis=0)
-    yaw = np.arctan2(d[:, 1], d[:, 0])
-    yaw = np.concatenate([yaw, yaw[-1:]])
+    # yaw 用**相机实际朝向**(光轴+z前向, 投到地面), 而非相邻waypoint切向——
+    # 近直线/抖动轨迹下切向会乱转, 而相机朝向=3DGS被观测方向, 渲染才清晰。
+    fwd_world = np.einsum("nij,j->ni", np.transpose(R, (0, 2, 1)), np.array([0, 0, 1.0]))  # cam +z 在VGGT世界
+    rz_fwd = fwd_world @ Rz.T                                  # 重力对齐
+    yaw = np.arctan2(rz_fwd[:, 1], rz_fwd[:, 0])
+    # 解卷绕 + 轻微平滑(去抖, 不改大趋势)
+    yaw = np.unwrap(yaw)
+    kk = 2
+    yaw = np.convolve(np.pad(yaw, kk, mode="edge"), np.ones(2 * kk + 1) / (2 * kk + 1), "valid")
     np.savez(os.path.join(ROOT, "outputs", f"sim_world_{s}.npz"),
              waypoints_xy=wp[:, :2], waypoints_z=wp[:, 2], yaw=yaw,
              cam_height=args.cam_height, k=k, Rz=Rz, t_world=t_world,
