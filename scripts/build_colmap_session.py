@@ -28,7 +28,7 @@ def main():
     imgs = sorted(rec.images.values(), key=lambda im: im.name)
     extr, intr = [], []
     for k, im in enumerate(imgs):
-        cfw = im.cam_from_world
+        cfw = im.cam_from_world() if callable(im.cam_from_world) else im.cam_from_world
         R = cfw.rotation.matrix(); t = np.asarray(cfw.translation)
         E = np.zeros((3, 4), np.float32); E[:3, :3] = R; E[:3, 3] = t
         cam = rec.cameras[im.camera_id]
