@@ -26,7 +26,9 @@ def build_occupancy(merged_ply, res, robot_r, traj=None):
     ix = np.clip(((mid[:, 0] - lo[0]) / res).astype(int), 0, W - 1)
     iy = np.clip(((mid[:, 1] - lo[1]) / res).astype(int), 0, H - 1)
     cnt = np.zeros((H, W), np.int32); np.add.at(cnt, (iy, ix), 1)
-    occ[cnt >= 3] = 1                                   # >=3点的格=占据(滤孤立噪点)
+    # 占据阈值随点云密度自适应(高斯多时阈值要高,否则走廊被误判成障碍)
+    thr = max(3, int(np.percentile(cnt[cnt > 0], 75)))
+    occ[cnt >= thr] = 1
     occ = cv2.dilate(occ, np.ones((int(robot_r / res) * 2 + 1,) * 2, np.uint8))  # 膨胀机器人半径
     return occ, lo, res
 
@@ -41,6 +43,7 @@ class CorridorTestEnv:
         self.env, self.Wd = make_env(skin_session, width=W, height=H, skin_only=True)
         wp_all = self.Wd["waypoints_xy"]                 # 可能是多段拼接(交界处瞬移)
         wp = self._longest_run(wp_all)                   # 取最长连续段当参考轨迹(start/goal/朝向)
+        wp = self._forward_only(wp)                      # 若是"去了又回",只取去程(到最远点),避免末端打转
         self.ref = wp                                    # 参考轨迹(供pure-pursuit demo;真测试用模型不需要)
         self.occ, self.lo, self.res = build_occupancy(os.path.join(ROOT, merged), res, robot_r, traj=wp_all)
         self._clear_path(wp_all, robot_r + 0.45)         # 占据/清路用全部点(两段覆盖更全)
@@ -61,6 +64,13 @@ class CorridorTestEnv:
             return wp
         a, b = max(segs, key=lambda ab: ab[1] - ab[0])
         return wp[a:b]
+
+    @staticmethod
+    def _forward_only(wp):
+        """若参考轨迹是'去了又回'(末端折返),只保留起点→离起点最远点的去程段,避免pursuit在折返点打转。"""
+        d = np.linalg.norm(wp - wp[0], axis=1)
+        far = int(d.argmax())
+        return wp[:far + 1] if far >= 2 else wp
 
     def _clear_path(self, wp, r):
         import cv2
