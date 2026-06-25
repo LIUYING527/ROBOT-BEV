@@ -20,6 +20,8 @@
 
 **③ BEV坐标轴/自身箭头**:`test_env._bev_window`重写=ego heading-up向量化(前=上右=右),红箭头朝上=前进,与FPV一致。验证`_bev_fixed_frames.png`。
 
+**最终定版(用户拍板回退)**:试了v2(放宽过曝遮罩240+增密)和v3(增密)想"更锐/消发白",用户实测都觉得**不如最初的684k版**(v2/v3发白更重;BEV因点云密而墙粗碎,且阈值调不动=被机器人半径膨胀主导)。**回退并永久保存684k版**(配置DEPTH_W0.4/严格遮罩225/默认密度→66万高斯):`gs_vggto_colmapjoint_all_684k.ply`(+_world+_684k.npz),FPV视频`outputs/walk_684k.mp4`。**教训:产物务必保留版本号**(原684k和视频被覆盖丢了,只能重训复现)。**BEV待办**:用户定了**从几何拟合两墙重建**BEV(decouple皮肤密度,fit_world_geometry的smooth_centerline/traj_frame/fit_wall_side可复用)——当前BEV仍是点云密度occupancy,未做。
+
 **结论/权衡**:三件事全做。1610帧版**更完整**(整条走廊、无针球白爆)适合当测试场皮肤(机器人可在任意处测);**426版局部更锐**但覆盖小。几何/BEV导航底座两者一致,皮肤锐度只影响VLM的FPV观感。要1610更锐需~2-3倍高斯(更激进densify,更多算力)。
 
 ---
