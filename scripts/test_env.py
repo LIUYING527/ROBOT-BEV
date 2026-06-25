@@ -26,7 +26,13 @@ def build_occupancy(merged_ply, res, robot_r, traj=None):
     ix = np.clip(((mid[:, 0] - lo[0]) / res).astype(int), 0, W - 1)
     iy = np.clip(((mid[:, 1] - lo[1]) / res).astype(int), 0, H - 1)
     cnt = np.zeros((H, W), np.int32); np.add.at(cnt, (iy, ix), 1)
-    occ[cnt >= 3] = 1                                   # >=3点的格=占据(实心墙,滤孤立噪点)
+    occ[cnt >= 3] = 1                                   # >=3点的格=占据
+    # 形态学清理:闭运算填实墙体空洞 + 去掉小噪点连通块(高斯软重建占据本身碎)
+    occ = cv2.morphologyEx(occ, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
+    n, lbl, stats, _ = cv2.connectedComponentsWithStats(occ, connectivity=8)
+    for i in range(1, n):
+        if stats[i, cv2.CC_STAT_AREA] < 20:            # <20格(0.05m²)的孤立噪块清掉
+            occ[lbl == i] = 0
     occ = cv2.dilate(occ, np.ones((int(robot_r / res) * 2 + 1,) * 2, np.uint8))  # 膨胀机器人半径
     return occ, lo, res
 
