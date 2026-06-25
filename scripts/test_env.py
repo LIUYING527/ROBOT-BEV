@@ -26,9 +26,7 @@ def build_occupancy(merged_ply, res, robot_r, traj=None):
     ix = np.clip(((mid[:, 0] - lo[0]) / res).astype(int), 0, W - 1)
     iy = np.clip(((mid[:, 1] - lo[1]) / res).astype(int), 0, H - 1)
     cnt = np.zeros((H, W), np.int32); np.add.at(cnt, (iy, ix), 1)
-    # 占据阈值随点云密度自适应(高斯多时阈值要高,否则走廊被误判成障碍)
-    thr = max(3, int(np.percentile(cnt[cnt > 0], 75)))
-    occ[cnt >= thr] = 1
+    occ[cnt >= 3] = 1                                   # >=3点的格=占据(实心墙,滤孤立噪点)
     occ = cv2.dilate(occ, np.ones((int(robot_r / res) * 2 + 1,) * 2, np.uint8))  # 膨胀机器人半径
     return occ, lo, res
 
