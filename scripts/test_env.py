@@ -32,7 +32,7 @@ def build_occupancy(merged_ply, res, robot_r, traj=None):
 
 
 class CorridorTestEnv:
-    def __init__(self, skin_session="colmapjoint_dense", merged=None,
+    def __init__(self, skin_session="colmapjoint_all", merged=None,
                  res=0.05, robot_r=0.3, W=640, H=400):
         # 占据源默认=皮肤同帧的世界ply(保证BEV几何与FPV同坐标系);可显式覆盖
         if merged is None:
@@ -147,7 +147,7 @@ def scripted_policy(bev):
 def main():
     import cv2
     ap = argparse.ArgumentParser()
-    ap.add_argument("--skin_session", default="colmapjoint_dense")
+    ap.add_argument("--skin_session", default="colmapjoint_all")
     ap.add_argument("--merged", default=None, help="占据源ply(默认=皮肤同帧世界ply)")
     ap.add_argument("--steps", type=int, default=200)
     ap.add_argument("--policy", default="pursuit", choices=["pursuit", "reactive"])
