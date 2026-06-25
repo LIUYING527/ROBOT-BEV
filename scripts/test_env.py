@@ -101,15 +101,20 @@ class CorridorTestEnv:
         return {"fpv": fpv, "bev": bev, "pose": (self.x, self.y, self.yaw)}
 
     def _bev_window(self, n=64):
-        # 机器人为中心、朝向朝上的局部占据窗
-        half = self.win_m / 2; out = np.zeros((n, n), np.uint8)
-        ca, sa = np.cos(-self.yaw + np.pi / 2), np.sin(-self.yaw + np.pi / 2)
-        for j in range(n):
-            for i in range(n):
-                lx = (i - n / 2) / n * self.win_m; ly = (j - n / 2) / n * self.win_m
-                wx = self.x + (lx * ca - ly * sa); wy = self.y + (lx * sa + ly * ca)
-                out[n - 1 - j, i] = 1 if self._occupied(wx, wy) else 0
-        return out
+        """机器人为中心、**朝向朝上**的局部占据窗(ego heading-up,DiffusionDrive标准):
+        图像上=机器人前方, 图像右=机器人右侧, 中心=机器人。向量化。"""
+        js, iss = np.meshgrid(np.arange(n), np.arange(n), indexing="ij")
+        f = (n / 2 - 0.5 - js) / n * self.win_m          # 前向距离(行越小=越上=越前)
+        r = (iss - n / 2 + 0.5) / n * self.win_m         # 横向距离(列越大=越右)
+        cy, sy = np.cos(self.yaw), np.sin(self.yaw)
+        # forward=(cy,sy), right=forward绕-90°=(sy,-cy)
+        wx = self.x + f * cy + r * sy
+        wy = self.y + f * sy - r * cy
+        ix = ((wx - self.lo[0]) / self.res).astype(int)
+        iy = ((wy - self.lo[1]) / self.res).astype(int)
+        valid = (ix >= 0) & (ix < self.occ.shape[1]) & (iy >= 0) & (iy < self.occ.shape[0])
+        vals = self.occ[np.clip(iy, 0, self.occ.shape[0] - 1), np.clip(ix, 0, self.occ.shape[1] - 1)]
+        return np.where(valid, vals, 1).astype(np.uint8)  # 界外保守=占据
 
 
 def pursuit_policy(env, lookahead=1.2):

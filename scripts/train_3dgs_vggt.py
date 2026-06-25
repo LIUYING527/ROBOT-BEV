@@ -53,7 +53,17 @@ DEPTH_W = float(os.environ.get("DEPTH_W", "0.5"))     # 深度损失权重
 ANTIALIAS = os.environ.get("ANTIALIAS", "0") == "1"   # gsplat antialiased(Mip-Splatting式)
 REG_SCALE = float(os.environ.get("REG_SCALE", "0.0")) # 尺度正则:罚超大高斯(归一化单位)
 REG_OPA = float(os.environ.get("REG_OPA", "0.0"))     # 不透明度二值化正则(逼向0/1,利剪枝)
+MASK_OVEREXP = os.environ.get("MASK_OVEREXP", "0") == "1"  # 过曝/反光像素遮罩(不参与光度/深度损失)
 RASTER_MODE = "antialiased" if ANTIALIAS else "classic"
+
+
+def overexp_mask(rgb_u8):
+    """返回 valid 掩码(True=正常像素, False=过曝/镜面反光,不参与损失)。rgb HxWx3 uint8。"""
+    mn = rgb_u8.min(2)
+    hsv = cv2.cvtColor(rgb_u8, cv2.COLOR_RGB2HSV)
+    over = (mn > 225) | ((hsv[:, :, 2] > 235) & (hsv[:, :, 1] < 35))
+    over = cv2.dilate(over.astype(np.uint8), np.ones((5, 5), np.uint8))
+    return over == 0
 RES_SCALE = UPSAMPLE / DS                       # 渲染/GT 相对 K 处理分辨率的缩放
 C0 = 0.28209479177387814                        # SH DC 系数 (1/(2*sqrt(pi)))
 
@@ -126,12 +136,15 @@ def main():
 
     # 预缓存所有图到 GPU(resize 到训练分辨率 Wr x Hr;源图 1280x720,上采=读更全细节)
     imgs = {}
+    omasks = {}
     for name, K, V, W, H in views:
         bgr = cv2.imread(name)
         rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
         rgb = cv2.resize(rgb, (Wr, Hr), interpolation=cv2.INTER_AREA)
-        imgs[name] = torch.tensor(rgb.copy(), dtype=torch.float32, device=DEV) / 255.0
-    print(f"[INFO] 缓存图像 {len(imgs)} 张 @ {Wr}x{Hr}", flush=True)
+        imgs[name] = torch.tensor(rgb.copy(), dtype=torch.uint8, device=DEV)   # uint8省显存(大帧数)
+        if MASK_OVEREXP:
+            omasks[name] = torch.tensor(overexp_mask(rgb), device=DEV)   # True=正常
+    print(f"[INFO] 缓存图像 {len(imgs)} 张 @ {Wr}x{Hr}  过曝遮罩{MASK_OVEREXP}", flush=True)
 
     # 初始化高斯(VGGT recon.ply 稠密点,降采样 + 去离群)
     # 初始点云: 默认 VGGT recon.ply;设 INIT_PLY 可用 ZED 深度融合云(fuse_zed.py 产出,更稠/度量干净)
@@ -207,7 +220,7 @@ def main():
         print(f"[depth] 全局尺度 m={m_scale:.4f}(米制深度/归一化深度) 样本{len(ratios)}", flush=True)
         for name, (zmet, vmask) in raw.items():
             zn = zmet / max(m_scale, 1e-6)
-            depths[name] = (torch.tensor(zn, dtype=torch.float32, device=DEV),
+            depths[name] = (torch.tensor(zn, dtype=torch.float16, device=DEV),   # f16省显存
                             torch.tensor(vmask, device=DEV))
         print(f"[depth] 缓存归一化深度 {len(depths)}/{len(views)} 帧  权重{DEPTH_W} 抗锯齿{ANTIALIAS}", flush=True)
     pt = torch.tensor(P, device=DEV)
@@ -267,10 +280,16 @@ def main():
                 params["colors"], vm, Ks, Wr, Hr, packed=False,
                 render_mode=rmode, rasterize_mode=RASTER_MODE)
         info["means2d"].retain_grad()
-        gt = imgs[name]
+        gt = imgs[name].float() / 255.0
         pred = render[0][..., :3].clamp(0, 1)
-        l1 = (pred - gt).abs().mean()
-        a = pred.permute(2, 0, 1)[None]; b = gt.permute(2, 0, 1)[None]
+        omask = omasks.get(name) if MASK_OVEREXP else None
+        if omask is not None:
+            vm = omask[..., None].float()                      # HxWx1, 1=正常像素
+            l1 = ((pred - gt).abs() * vm).sum() / (vm.sum() * 3).clamp(min=1)
+            a = (pred * vm).permute(2, 0, 1)[None]; b = (gt * vm).permute(2, 0, 1)[None]
+        else:
+            l1 = (pred - gt).abs().mean()
+            a = pred.permute(2, 0, 1)[None]; b = gt.permute(2, 0, 1)[None]
         loss = 0.8 * l1 + 0.2 * (1 - ssim(a, b))
         # 深度监督:渲染期望深度对齐ZED度量深度(把高斯压到真实表面→消针球),仅在alpha高处
         if DEPTH_SUP and name in depths:
@@ -278,8 +297,10 @@ def main():
             dz, dmask = depths[name]
             amask = alpha[0, ..., 0] > 0.5
             mk = dmask & amask
+            if omask is not None:
+                mk = mk & omask                                # 过曝像素深度也不可信,跳过
             if mk.any():
-                e = (dpred[mk] - dz[mk]).abs()
+                e = (dpred[mk] - dz[mk].float()).abs()
                 d = 0.1
                 loss = loss + DEPTH_W * torch.where(e < d, 0.5 * e * e / d, e - 0.5 * d).mean()
         # 尺度正则:罚超大高斯(欠约束的胖飘片) / 不透明度二值化(逼向0/1,利剪枝)
