@@ -54,6 +54,10 @@ ANTIALIAS = os.environ.get("ANTIALIAS", "0") == "1"   # gsplat antialiased(Mip-S
 REG_SCALE = float(os.environ.get("REG_SCALE", "0.0")) # 尺度正则:罚超大高斯(归一化单位)
 REG_OPA = float(os.environ.get("REG_OPA", "0.0"))     # 不透明度二值化正则(逼向0/1,利剪枝)
 MASK_OVEREXP = os.environ.get("MASK_OVEREXP", "0") == "1"  # 过曝/反光像素遮罩(不参与光度/深度损失)
+OVEREXP_MIN = int(os.environ.get("OVEREXP_MIN", "225"))    # 过曝阈值(越高遮越少,防误遮有效亮区致发白)
+OVEREXP_DILATE = int(os.environ.get("OVEREXP_DILATE", "5"))
+GROW_GRAD2D = float(os.environ.get("GROW_GRAD2D", "0.0002"))   # 致密化梯度阈值(越低→高斯越多越锐)
+REFINE_STOP_RATIO = float(os.environ.get("REFINE_STOP_RATIO", "0.7"))  # 致密化停止占总iter比例
 RASTER_MODE = "antialiased" if ANTIALIAS else "classic"
 
 
@@ -61,8 +65,9 @@ def overexp_mask(rgb_u8):
     """返回 valid 掩码(True=正常像素, False=过曝/镜面反光,不参与损失)。rgb HxWx3 uint8。"""
     mn = rgb_u8.min(2)
     hsv = cv2.cvtColor(rgb_u8, cv2.COLOR_RGB2HSV)
-    over = (mn > 225) | ((hsv[:, :, 2] > 235) & (hsv[:, :, 1] < 35))
-    over = cv2.dilate(over.astype(np.uint8), np.ones((5, 5), np.uint8))
+    over = (mn > OVEREXP_MIN) | ((hsv[:, :, 2] > OVEREXP_MIN + 10) & (hsv[:, :, 1] < 35))
+    if OVEREXP_DILATE > 1:
+        over = cv2.dilate(over.astype(np.uint8), np.ones((OVEREXP_DILATE, OVEREXP_DILATE), np.uint8))
     return over == 0
 RES_SCALE = UPSAMPLE / DS                       # 渲染/GT 相对 K 处理分辨率的缩放
 C0 = 0.28209479177387814                        # SH DC 系数 (1/(2*sqrt(pi)))
@@ -251,7 +256,8 @@ def main():
     optimizers = {k: torch.optim.Adam([{"params": params[k], "lr": lrs[k]}], eps=1e-15)
                   for k in params}
 
-    strategy = DefaultStrategy(refine_stop_iter=int(ITERS * 0.7), verbose=False)
+    strategy = DefaultStrategy(refine_stop_iter=int(ITERS * REFINE_STOP_RATIO),
+                               grow_grad2d=GROW_GRAD2D, verbose=False)
     strategy.check_sanity(params, optimizers)
     state = strategy.initialize_state(scene_scale=scene_scale)
 
