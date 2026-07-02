@@ -58,6 +58,8 @@ OVEREXP_MIN = int(os.environ.get("OVEREXP_MIN", "225"))    # 过曝阈值(越高
 OVEREXP_DILATE = int(os.environ.get("OVEREXP_DILATE", "5"))
 GROW_GRAD2D = float(os.environ.get("GROW_GRAD2D", "0.0002"))   # 致密化梯度阈值(越低→高斯越多越锐)
 REFINE_STOP_RATIO = float(os.environ.get("REFINE_STOP_RATIO", "0.7"))  # 致密化停止占总iter比例
+APPEARANCE = os.environ.get("APPEARANCE", "0") == "1"   # per-image gain/bias建模逐帧曝光/反光不一致(治白雾;存盘高斯=去曝光canonical外观)
+APP_REG = float(os.environ.get("APP_REG", "0.01"))      # 罚gain偏1/bias偏0防漂
 RASTER_MODE = "antialiased" if ANTIALIAS else "classic"
 
 
@@ -255,6 +257,13 @@ def main():
     params = torch.nn.ParameterDict(pdict).to(DEV)
     optimizers = {k: torch.optim.Adam([{"params": params[k], "lr": lrs[k]}], eps=1e-15)
                   for k in params}
+    name2idx = app_gain = app_bias = app_opt = None
+    if APPEARANCE:
+        name2idx = {v[0]: i for i, v in enumerate(views)}
+        app_gain = torch.nn.Parameter(torch.ones(len(name2idx), 3, device=DEV))
+        app_bias = torch.nn.Parameter(torch.zeros(len(name2idx), 3, device=DEV))
+        app_opt = torch.optim.Adam([app_gain, app_bias], lr=1e-3, eps=1e-15)
+        print(f"[INFO] appearance建模ON {len(name2idx)}帧 per-image gain/bias APP_REG{APP_REG}", flush=True)
 
     strategy = DefaultStrategy(refine_stop_iter=int(ITERS * REFINE_STOP_RATIO),
                                grow_grad2d=GROW_GRAD2D, verbose=False)
@@ -288,6 +297,9 @@ def main():
         info["means2d"].retain_grad()
         gt = imgs[name].float() / 255.0
         pred = render[0][..., :3].clamp(0, 1)
+        if APPEARANCE:                                         # 逐帧曝光校正:让亮度差进gain/bias而非白雾高斯
+            gi = name2idx[name]
+            pred = (pred * app_gain[gi] + app_bias[gi]).clamp(0, 1)
         omask = omasks.get(name) if MASK_OVEREXP else None
         if omask is not None:
             vm = omask[..., None].float()                      # HxWx1, 1=正常像素
@@ -315,11 +327,15 @@ def main():
         if REG_OPA > 0:
             o = torch.sigmoid(params["opacities"]).clamp(1e-4, 1 - 1e-4)
             loss = loss + REG_OPA * (-(o * torch.log(o) + (1 - o) * torch.log(1 - o))).mean()
+        if APPEARANCE:
+            loss = loss + APP_REG * ((app_gain[gi] - 1).pow(2).mean() + app_bias[gi].pow(2).mean())
         strategy.step_pre_backward(params, optimizers, state, step, info)
         loss.backward()
         strategy.step_post_backward(params, optimizers, state, step, info, packed=False)
         for opt in optimizers.values():
             opt.step(); opt.zero_grad(set_to_none=True)
+        if APPEARANCE:
+            app_opt.step(); app_opt.zero_grad(set_to_none=True)
         if step % 200 == 0 or step == ITERS - 1:
             print(f"  step {step}  loss {float(loss):.4f}  N {params['means'].shape[0]}", flush=True)
 
