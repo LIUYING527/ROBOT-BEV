@@ -6,6 +6,23 @@
 
 ---
 
+## 2026-07-02(下) —— ⭐整个架构端到端跑通(非反应式两阶段, 官方范式)
+
+**目标**:跑一遍完整流程测整个架构(sim皮肤FPV+BEV+位姿 → DiffusionDrive快脑 → 轨迹)。
+
+**查证定架构**:env冲突(sim渲染在discoverse_venv缺模型依赖/CUDA不同,模型需lightning/hydra/nuplan)→无法同进程。查NAVSIM(CoRL25伪仿真/arXiv2406.15349)=**官方本就非反应式**(预测一次4s轨迹→静态环境展开→算PDMS,策略与环境解耦非序贯,省6×)。据此=**两阶段解耦,天然绕开env冲突**。
+
+**做了什么**:
+- **模型env**:artifixer补装lightning/timm/shapely/pyquaternion(纯增量无降级);**vendor极小`_nuplan_shim`**(枚举+TrajectorySampling+一堆训练用空壳stub)绕开整个nuplan-devkit(它pin numpy1.23/hydra1.1会搞坏ArtiFixer)。**V2TransfuserModel直连**加载best-val-loss.ckpt(763权重全中)+假输入前向出trajectory[1,8,3]。
+- **Stage A** `scripts/gen_obs_sequence.py`(discoverse_venv):沿参考轨迹渲FPV+存位姿→`outputs/obs_seq_<s>/`。
+- **Stage B** `scripts/eval_diffusiondrive_nonreactive.py`(模型env):逐obs建features(FPV→camera_feature/**官方sim_bev前向FOV直方图→lidar_feature**/cruise status)→model.forward→轨迹→静态占据展开算无碰撞/进度→出`eval_nonreactive_<s>.mp4`(FPV+BEV叠轨迹)+json。
+
+**结果**:40帧端到端跑通,可视化正确。**无碰撞率0.15/平均进度0.77m/多预测inspect=轨迹差**——**预期内**(学长ckpt训真实ZED,sim的3DGS FPV+几何BEV有domain gap)。**本次目标=验证整条架构数据流通+模型可被sim驱动,已达成**。真效果要重训(收窄BEV/ego坐标/真实轨迹标签)。
+
+**产物/文件**:`_nuplan_shim/`(模型env免整装nuplan)、`scripts/gen_obs_sequence.py`、`scripts/eval_diffusiondrive_nonreactive.py`、`outputs/eval_nonreactive_colmapjoint_all.mp4`。**下一步**:重训原始DiffusionDrive on 我们数据;或先改进sim↔真实domain gap(皮肤用ArtiFixer/BEV参数)。
+
+---
+
 ## 2026-07-01夜/07-02 —— ⭐ArtiFixer出片成功+效果拔群(全链路闭环打通)
 
 **接0701 OOM根因定位**：等待器(正解配置 `--num_views 2 --local_attn_size 9 --sink_size 5`,单卡)在 7/1 21:35 集群终于空出卡时,一抢到就跑通。证明该配置成立——之前多次失败**全是抢卡竞态**(整板被占,加载33GB权重中途被别人挤爆),不是配置问题。

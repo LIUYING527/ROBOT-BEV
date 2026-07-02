@@ -1,0 +1,1 @@
+class EgoState: pass
