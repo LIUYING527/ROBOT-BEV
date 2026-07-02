@@ -1,56 +1,70 @@
-"""仿真器 BEV 生成件: log-odds 全局占据图 -> 按机器人位姿 ego 裁窗 -> [1,256,256]
-用于喂 (原始)DiffusionDrive 的 lidar_feature。语义: 0=可通行 0.5=未知 1=障碍。
-"""
-import numpy as np
+"""仿真器 BEV 生成件 —— 喂 DiffusionDrive 的 lidar_feature。
 
+⭐原则(用户要求): 优先官方代码,不手搓。
+主路径 official_lidar_feature() 直接调官方直方图逻辑
+(navsim/agents/diffusiondrive/transfuser_features.py::_get_lidar_feature,
+ 学长 robot_data_prep/bev.py::points_to_bev_tensor 是其逐行拷贝),
+输出格式与原始 DiffusionDrive 完全一致 [1,256,256]。
+
+log-odds 占据(OccBEV)只作可选的"世界底图可视化",非模型输入,别用于对齐原始模型。
+"""
+import sys, numpy as np
+sys.path.insert(0, '/data/DongBaorong/BEVLOOK/robot_orig_code')  # 官方 bev.py
+from robot_data_prep.bev import BEVParams, points_to_bev_tensor   # ⭐官方直方图
+
+
+# ---- 官方参数(= transfuser_config.py, ±32m 车端默认; 室内重训可改 range) ----
+def default_bev_params(lidar_range=32.0, pixels_per_meter=None, split_height=0.2):
+    if pixels_per_meter is None:
+        pixels_per_meter = 256.0 / (2 * lidar_range)   # 保持 256×256
+    return BEVParams(-lidar_range, lidar_range, -lidar_range, lidar_range,
+                     pixels_per_meter, hist_max_per_pixel=5, max_height_lidar=100.0,
+                     lidar_split_height=split_height, use_ground_plane=False)
+
+
+def depth_npz_to_ego(npz_path):
+    """ZED 深度点云 npz -> ego 系点云 (x前 y左 z上, 米). 相机系 remap 同上车 _depth_to_xyz_m。"""
+    a = np.load(npz_path, allow_pickle=True); k = a.files[0]
+    p = np.asarray(a[k]).reshape(-1, np.asarray(a[k]).shape[-1])[:, :3].astype(np.float64)
+    p = p[np.isfinite(p).all(1)] / 1000.0
+    return np.stack([p[:, 2], -p[:, 0], -p[:, 1]], axis=1)
+
+
+def official_lidar_feature(ego_xyz, lidar_range=32.0):
+    """⭐主路径: ego点云 -> 官方 DiffusionDrive lidar_feature [1,256,256] float 0~1.
+    直接用官方 points_to_bev_tensor。lidar_range=32 对齐原始;室内重训用 4~6。"""
+    p = default_bev_params(lidar_range)
+    return points_to_bev_tensor(np.asarray(ego_xyz, np.float64), p).astype(np.float32)
+
+
+def lidar_feature_from_depth_npz(npz_path, lidar_range=32.0):
+    return official_lidar_feature(depth_npz_to_ego(npz_path), lidar_range)
+
+
+# ---------------- 以下为可选: log-odds 占据世界底图(非模型输入,勿用于对齐原始) ----------------
 class OccBEV:
+    """可选: 从 log-odds 多帧占据全局图 ego 裁窗。仅作可视化/规划底图。"""
     def __init__(self, npz='outputs/bev_logodds_114830.npz'):
         g = np.load(npz, allow_pickle=True)
         self.prob = g['prob']; self.obsv = g['obsv']
         self.xr = tuple(g['xr']); self.yr = tuple(g['yr']); self.res = float(g['res'])
-        self.cams = g['cams']
-        self.nx, self.ny = self.prob.shape
-        # 预算三态图: 0 free / 0.5 unknown / 1 occ
-        tri = np.full_like(self.prob, 0.5, np.float32)
-        tri[self.obsv & (self.prob < 0.35)] = 0.0
-        tri[self.obsv & (self.prob > 0.6)] = 1.0
-        self.tri = tri
+        self.cams = g['cams']; self.nx, self.ny = self.prob.shape
 
-    def ego_bev(self, pos_xy, yaw, R=6.0, N=256, source='tri'):
-        """返回 [1,N,N]: ego居中(下=后 上=前), 左在左. source: 'tri'三态 / 'prob'连续占据概率"""
-        M = self.tri if source == 'tri' else self.prob
-        ff = np.linspace(-R, R, N)            # forward 轴(行)
-        ll = np.linspace(R, -R, N)            # left 轴(列): 左在左
-        FL, FF = np.meshgrid(ll, ff)
-        c, s = np.cos(yaw), np.sin(yaw)
-        wx = pos_xy[0] + FF*c - FL*s          # forward沿heading
-        wy = pos_xy[1] + FF*s + FL*c
-        ix = ((wx - self.xr[0])/self.res).astype(np.int32)
-        iy = ((wy - self.yr[0])/self.res).astype(np.int32)
+    def ego_bev(self, pos_xy, yaw, R=6.0, N=256):
+        soft = np.where(self.obsv, self.prob, 0.5).astype(np.float32)
+        ff = np.linspace(-R, R, N); ll = np.linspace(R, -R, N)
+        FL, FF = np.meshgrid(ll, ff); c, s = np.cos(yaw), np.sin(yaw)
+        wx = pos_xy[0] + FF*c - FL*s; wy = pos_xy[1] + FF*s + FL*c
+        ix = ((wx - self.xr[0])/self.res).astype(np.int32); iy = ((wy - self.yr[0])/self.res).astype(np.int32)
         ok = (ix>=0)&(ix<self.nx)&(iy>=0)&(iy<self.ny)
-        out = np.full((N, N), 0.5 if source=='tri' else 0.0, np.float32)  # 界外=未知
-        out[ok] = M[ix[ok], iy[ok]]
-        return out[None]                       # [1,N,N]
+        out = np.full((N, N), 0.5, np.float32); out[ok] = soft[ix[ok], iy[ok]]
+        return out[None]
 
-    def yaw_at(self, i, k=5):
-        j = min(i+k, len(self.cams)-1)
-        d = self.cams[j][:2] - self.cams[i][:2]
-        return float(np.arctan2(d[1], d[0]))
 
 if __name__ == '__main__':
-    import matplotlib; matplotlib.use('Agg'); import matplotlib.pyplot as plt
-    from matplotlib.colors import ListedColormap
-    b = OccBEV()
-    cmap = ListedColormap(['white', '#8a8a8a', 'black'])
-    poses = [60, 140, 210]
-    fig, ax = plt.subplots(1, len(poses), figsize=(15, 5.5))
-    for j, pi in enumerate(poses):
-        pos = b.cams[pi][:2]; yaw = b.yaw_at(pi)
-        ego = b.ego_bev(pos, yaw, R=6.0)[0]
-        ax[j].imshow(ego, origin='lower', extent=[6,-6,-6,6], cmap=cmap, vmin=0, vmax=1)
-        ax[j].plot(0,0,'r^',ms=13)
-        ax[j].set_title(f'EGO BEV pose#{pi}  256x256 +/-6m\nfeed DiffusionDrive lidar_feature')
-        ax[j].set_xlabel('left(m)'); ax[j].set_ylabel('forward(m)')
-        ax[j].text(5.3,5.2,'L',color='b'); ax[j].text(-5.6,5.2,'R',color='b')
-    plt.tight_layout(); plt.savefig('outputs/bev_ego_logodds_0702.png', dpi=120, bbox_inches='tight')
-    print('SAVED outputs/bev_ego_logodds_0702.png')
+    import glob
+    pcs = sorted(glob.glob('data/114830/pointcloud/zed/*.npz'))
+    for R in (32.0, 6.0):
+        bev = lidar_feature_from_depth_npz(pcs[len(pcs)//2], lidar_range=R)
+        print(f'official lidar_feature +/-{R}m: shape={bev.shape} dtype={bev.dtype} '
+              f'range[{bev.min():.2f},{bev.max():.2f}] nonzero={int((bev>0).sum())}')
