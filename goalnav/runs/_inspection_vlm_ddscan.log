@@ -1,0 +1,362 @@
+/home/DongBaorong/.local/lib/python3.10/site-packages/torch/utils/cpp_extension.py:1964: UserWarning: TORCH_CUDA_ARCH_LIST is not set, all archs for visible cards are included for compilation. 
+If this is not desired, please set os.environ['TORCH_CUDA_ARCH_LIST'].
+  warnings.warn(
+mjcf found: /data/DongBaorong/BEVLOOK/robot_bev_sim/outputs/_sim_walk_colmapjoint_all.xml
+screeninfo error: No enumerators available, using default screen size: 1920x1080
+[巡检] A*路径96点; 设备簇4个: [(np.float32(8.2), np.float32(-1.2)), (np.float32(18.0), np.float32(-2.2)), (np.float32(25.8), np.float32(-2.9)), (np.float32(30.8), np.float32(-3.5))]
+/data/DongBaorong/BEVLOOK/robot_bev_sim/goalnav/pipeline/run_inspection.py:135: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+  ck = torch.load(os.path.join(RUNS, ck_name))
+[巡检] 加载 goalnav_gate.pt (cruise+横扫+命令门控原地转)
+  step  0 [CRUISE] pose=(5.8,-0.9,-0.14) 已检视=0 子任务发起=0
+Multiple -pix_fmt options specified for stream 0, only the last option '-pix_fmt yuv420p' will be used.
+  step 10 [TURN_TO_FACE] pose=(6.7,-1.1,-0.14) 已检视=0 子任务发起=1
+  step 20 [SCAN] pose=(7.0,-1.1,+1.27) 已检视=0 子任务发起=1
+  step 30 [SCAN] pose=(7.2,-0.8,+1.34) 已检视=0 子任务发起=1
+  step 40 [SCAN] pose=(7.9,-0.8,+1.33) 已检视=0 子任务发起=1
+  step 50 [SCAN] pose=(8.8,-0.9,+1.33) 已检视=0 子任务发起=1
+  step 60 [SCAN] pose=(9.6,-0.9,+1.33) 已检视=0 子任务发起=1
+  step 70 [TURN_BACK] pose=(10.5,-1.0,+1.33) 已检视=1 子任务发起=1
+  step 80 [CRUISE] pose=(10.7,-1.1,-0.00) 已检视=1 子任务发起=1
+  step 90 [CRUISE] pose=(11.4,-1.3,-0.19) 已检视=1 子任务发起=1
+  step100 [CRUISE] pose=(12.4,-1.5,-0.16) 已检视=1 子任务发起=1
+  step110 [CRUISE] pose=(13.4,-1.7,-0.11) 已检视=1 子任务发起=1
+  step120 [TURN_TO_FACE] pose=(14.4,-1.8,-0.12) 已检视=1 子任务发起=2
+  step130 [SCAN] pose=(14.6,-1.8,+1.24) 已检视=1 子任务发起=2
+  step140 [SCAN] pose=(15.0,-1.2,+1.25) 已检视=1 子任务发起=2
+  step150 [SCAN] pose=(15.2,-1.0,+1.25) 已检视=1 子任务发起=2
+  step160 [SCAN] pose=(15.2,-0.9,+1.25) 已检视=1 子任务发起=2
+  step170 [SCAN] pose=(15.2,-0.9,+1.25) 已检视=1 子任务发起=2
+  step180 [SCAN] pose=(15.2,-0.8,+1.25) 已检视=1 子任务发起=2
+  step190 [SCAN] pose=(15.3,-0.7,+1.25) 已检视=1 子任务发起=2
+  step200 [SCAN] pose=(15.3,-0.7,+1.25) 已检视=1 子任务发起=2
+  step210 [SCAN] pose=(15.3,-0.6,+1.25) 已检视=1 子任务发起=2
+  step220 [SCAN] pose=(15.3,-0.5,+1.25) 已检视=1 子任务发起=2
+  step230 [SCAN] pose=(15.4,-0.4,+1.25) 已检视=1 子任务发起=2
+  step240 [SCAN] pose=(15.4,-0.4,+1.25) 已检视=1 子任务发起=2
+  step250 [SCAN] pose=(15.4,-0.3,+1.25) 已检视=1 子任务发起=2
+  step260 [SCAN] pose=(15.4,-0.2,+1.25) 已检视=1 子任务发起=2
+  step270 [SCAN] pose=(15.5,-0.2,+1.25) 已检视=1 子任务发起=2
+  step280 [SCAN] pose=(15.5,-0.1,+1.25) 已检视=1 子任务发起=2
+  step290 [TURN_BACK] pose=(15.5,-0.0,+1.25) 已检视=2 子任务发起=2
+  step300 [TURN_BACK] pose=(15.5,-0.0,-0.23) 已检视=2 子任务发起=2
+  step310 [CRUISE] pose=(15.5,-0.0,-0.60) 已检视=2 子任务发起=2
+  step311 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step312 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step313 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step314 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step315 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step316 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step317 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step318 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step319 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step320 [CRUISE] pose=(15.6,-0.0,-0.51) 已检视=2 子任务发起=2
+  step320 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step321 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step322 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step323 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step324 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step325 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step326 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step327 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step328 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step329 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step330 [CRUISE] pose=(15.6,-0.0,-0.48) 已检视=2 子任务发起=2
+  step330 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step331 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step332 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step333 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step334 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step335 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step336 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step337 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step338 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step339 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step340 [CRUISE] pose=(15.6,-0.0,-0.50) 已检视=2 子任务发起=2
+  step340 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step341 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step342 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step343 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step344 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step345 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step346 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step347 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step348 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step349 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step350 [CRUISE] pose=(15.6,-0.0,-0.51) 已检视=2 子任务发起=2
+  step350 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step351 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step352 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step353 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step354 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step355 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step356 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step357 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step358 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step359 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step360 [CRUISE] pose=(15.6,-0.0,-0.50) 已检视=2 子任务发起=2
+  step360 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step361 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step362 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step363 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step364 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step365 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step366 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step367 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step368 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step369 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step370 [CRUISE] pose=(15.6,-0.0,-0.49) 已检视=2 子任务发起=2
+  step370 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step371 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step372 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step373 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step374 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step375 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step376 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step377 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step378 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step379 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step380 [CRUISE] pose=(15.6,-0.0,-0.51) 已检视=2 子任务发起=2
+  step380 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step381 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step382 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step383 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step384 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step385 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step386 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step387 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step388 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step389 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step390 [CRUISE] pose=(15.6,-0.0,-0.50) 已检视=2 子任务发起=2
+  step390 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step391 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step392 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step393 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step394 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step395 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step396 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step397 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step398 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step399 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step400 [CRUISE] pose=(15.6,-0.0,-0.51) 已检视=2 子任务发起=2
+  step400 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step401 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step402 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step403 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step404 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step405 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step406 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step407 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step408 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step409 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step410 [CRUISE] pose=(15.6,-0.0,-0.51) 已检视=2 子任务发起=2
+  step410 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step411 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step412 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step413 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step414 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step415 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step416 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step417 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step418 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step419 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step420 [CRUISE] pose=(15.6,-0.0,-0.51) 已检视=2 子任务发起=2
+  step420 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step421 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step422 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step423 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step424 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step425 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step426 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step427 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step428 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step429 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step430 [CRUISE] pose=(15.6,-0.0,-0.51) 已检视=2 子任务发起=2
+  step430 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step431 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step432 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step433 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step434 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step435 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step436 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step437 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step438 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step439 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step440 [CRUISE] pose=(15.6,-0.0,-0.50) 已检视=2 子任务发起=2
+  step440 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step441 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step442 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step443 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step444 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step445 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step446 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step447 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step448 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step449 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step450 [CRUISE] pose=(15.6,-0.0,-0.48) 已检视=2 子任务发起=2
+  step450 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step451 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step452 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step453 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step454 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step455 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step456 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step457 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step458 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step459 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step460 [CRUISE] pose=(15.6,-0.0,-0.51) 已检视=2 子任务发起=2
+  step460 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step461 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step462 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step463 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step464 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step465 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step466 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step467 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step468 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step469 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step470 [CRUISE] pose=(15.6,-0.0,-0.48) 已检视=2 子任务发起=2
+  step470 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step471 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step472 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step473 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step474 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step475 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step476 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step477 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step478 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step479 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step480 [CRUISE] pose=(15.6,-0.0,-0.51) 已检视=2 子任务发起=2
+  step480 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step481 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step482 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step483 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step484 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step485 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step486 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step487 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step488 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step489 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step490 [CRUISE] pose=(15.6,-0.0,-0.50) 已检视=2 子任务发起=2
+  step490 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step491 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step492 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step493 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step494 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step495 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step496 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step497 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step498 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step499 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step500 [CRUISE] pose=(15.6,-0.0,-0.52) 已检视=2 子任务发起=2
+  step500 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step501 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step502 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step503 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step504 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step505 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step506 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step507 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step508 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step509 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step510 [CRUISE] pose=(15.6,-0.0,-0.49) 已检视=2 子任务发起=2
+  step510 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step511 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step512 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step513 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step514 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step515 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step516 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step517 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step518 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step519 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step520 [CRUISE] pose=(15.6,-0.0,-0.50) 已检视=2 子任务发起=2
+  step520 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step521 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step522 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step523 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step524 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step525 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step526 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step527 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step528 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step529 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step530 [CRUISE] pose=(15.6,-0.0,-0.50) 已检视=2 子任务发起=2
+  step530 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step531 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step532 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step533 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step534 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step535 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step536 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step537 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step538 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step539 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step540 [CRUISE] pose=(15.6,-0.0,-0.51) 已检视=2 子任务发起=2
+  step540 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step541 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step542 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step543 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step544 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step545 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step546 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step547 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step548 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step549 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step550 [CRUISE] pose=(15.6,-0.0,-0.48) 已检视=2 子任务发起=2
+  step550 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step551 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step552 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step553 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step554 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step555 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step556 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step557 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step558 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step559 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step560 [CRUISE] pose=(15.6,-0.0,-0.49) 已检视=2 子任务发起=2
+  step560 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step561 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step562 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step563 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step564 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step565 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step566 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step567 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step568 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step569 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step570 [CRUISE] pose=(15.6,-0.0,-0.50) 已检视=2 子任务发起=2
+  step570 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step571 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step572 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step573 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step574 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step575 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step576 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step577 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step578 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step579 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step580 [CRUISE] pose=(15.6,-0.0,-0.50) 已检视=2 子任务发起=2
+  step580 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step581 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step582 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step583 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step584 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step585 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step586 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step587 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step588 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step589 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step590 [CRUISE] pose=(15.6,-0.0,-0.51) 已检视=2 子任务发起=2
+  step590 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step591 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step592 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step593 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step594 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step595 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step596 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step597 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step598 碰撞! pose=(15.6,-0.0) state=CRUISE
+  step599 碰撞! pose=(15.6,-0.0) state=CRUISE
+[done] 271s  检视2处
+  /data/DongBaorong/BEVLOOK/robot_bev_sim/goalnav/runs/inspection_colmapjoint_all_20260714_203908.mp4
+  /data/DongBaorong/BEVLOOK/robot_bev_sim/goalnav/runs/inspection_colmapjoint_all.mp4

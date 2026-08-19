@@ -1,0 +1,61 @@
+[chain] 训练结束, 跑 verify_turn(gate)...
+/data/DongBaorong/BEVLOOK/robot_bev_sim/goalnav/pipeline/verify_turn.py:27: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+  ck = torch.load(os.path.join(RUNS, CKPT))
+[verify] 载 goalnav_gate.pt
+/data/DongBaorong/BEVLOOK/robot_bev_sim/goalnav/pipeline/verify_turn.py:69: UserWarning: Glyph 21516 (\N{CJK UNIFIED IDEOGRAPH-540C}) missing from font(s) DejaVu Sans.
+  fig.tight_layout(); fig.savefig(out, dpi=120)
+/data/DongBaorong/BEVLOOK/robot_bev_sim/goalnav/pipeline/verify_turn.py:69: UserWarning: Glyph 19968 (\N{CJK UNIFIED IDEOGRAPH-4E00}) missing from font(s) DejaVu Sans.
+  fig.tight_layout(); fig.savefig(out, dpi=120)
+/data/DongBaorong/BEVLOOK/robot_bev_sim/goalnav/pipeline/verify_turn.py:69: UserWarning: Glyph 35266 (\N{CJK UNIFIED IDEOGRAPH-89C2}) missing from font(s) DejaVu Sans.
+  fig.tight_layout(); fig.savefig(out, dpi=120)
+/data/DongBaorong/BEVLOOK/robot_bev_sim/goalnav/pipeline/verify_turn.py:69: UserWarning: Glyph 27979 (\N{CJK UNIFIED IDEOGRAPH-6D4B}) missing from font(s) DejaVu Sans.
+  fig.tight_layout(); fig.savefig(out, dpi=120)
+/data/DongBaorong/BEVLOOK/robot_bev_sim/goalnav/pipeline/verify_turn.py:69: UserWarning: Glyph 25913 (\N{CJK UNIFIED IDEOGRAPH-6539}) missing from font(s) DejaVu Sans.
+  fig.tight_layout(); fig.savefig(out, dpi=120)
+/data/DongBaorong/BEVLOOK/robot_bev_sim/goalnav/pipeline/verify_turn.py:69: UserWarning: Glyph 30446 (\N{CJK UNIFIED IDEOGRAPH-76EE}) missing from font(s) DejaVu Sans.
+  fig.tight_layout(); fig.savefig(out, dpi=120)
+/data/DongBaorong/BEVLOOK/robot_bev_sim/goalnav/pipeline/verify_turn.py:69: UserWarning: Glyph 26631 (\N{CJK UNIFIED IDEOGRAPH-6807}) missing from font(s) DejaVu Sans.
+  fig.tight_layout(); fig.savefig(out, dpi=120)
+/data/DongBaorong/BEVLOOK/robot_bev_sim/goalnav/pipeline/verify_turn.py:69: UserWarning: Glyph 26397 (\N{CJK UNIFIED IDEOGRAPH-671D}) missing from font(s) DejaVu Sans.
+  fig.tight_layout(); fig.savefig(out, dpi=120)
+/data/DongBaorong/BEVLOOK/robot_bev_sim/goalnav/pipeline/verify_turn.py:69: UserWarning: Glyph 21521 (\N{CJK UNIFIED IDEOGRAPH-5411}) missing from font(s) DejaVu Sans.
+  fig.tight_layout(); fig.savefig(out, dpi=120)
+/data/DongBaorong/BEVLOOK/robot_bev_sim/goalnav/pipeline/verify_turn.py:69: UserWarning: Glyph 36712 (\N{CJK UNIFIED IDEOGRAPH-8F68}) missing from font(s) DejaVu Sans.
+  fig.tight_layout(); fig.savefig(out, dpi=120)
+/data/DongBaorong/BEVLOOK/robot_bev_sim/goalnav/pipeline/verify_turn.py:69: UserWarning: Glyph 36857 (\N{CJK UNIFIED IDEOGRAPH-8FF9}) missing from font(s) DejaVu Sans.
+  fig.tight_layout(); fig.savefig(out, dpi=120)
+/data/DongBaorong/BEVLOOK/robot_bev_sim/goalnav/pipeline/verify_turn.py:69: UserWarning: Glyph 26411 (\N{CJK UNIFIED IDEOGRAPH-672B}) missing from font(s) DejaVu Sans.
+  fig.tight_layout(); fig.savefig(out, dpi=120)
+/data/DongBaorong/BEVLOOK/robot_bev_sim/goalnav/pipeline/verify_turn.py:69: UserWarning: Glyph 31471 (\N{CJK UNIFIED IDEOGRAPH-7AEF}) missing from font(s) DejaVu Sans.
+  fig.tight_layout(); fig.savefig(out, dpi=120)
+/data/DongBaorong/BEVLOOK/robot_bev_sim/goalnav/pipeline/verify_turn.py:69: UserWarning: Glyph 38543 (\N{CJK UNIFIED IDEOGRAPH-968F}) missing from font(s) DejaVu Sans.
+  fig.tight_layout(); fig.savefig(out, dpi=120)
+/data/DongBaorong/BEVLOOK/robot_bev_sim/goalnav/pipeline/verify_turn.py:69: UserWarning: Glyph 21629 (\N{CJK UNIFIED IDEOGRAPH-547D}) missing from font(s) DejaVu Sans.
+  fig.tight_layout(); fig.savefig(out, dpi=120)
+/data/DongBaorong/BEVLOOK/robot_bev_sim/goalnav/pipeline/verify_turn.py:69: UserWarning: Glyph 20196 (\N{CJK UNIFIED IDEOGRAPH-4EE4}) missing from font(s) DejaVu Sans.
+  fig.tight_layout(); fig.savefig(out, dpi=120)
+/data/DongBaorong/BEVLOOK/robot_bev_sim/goalnav/pipeline/verify_turn.py:69: UserWarning: Glyph 21464 (\N{CJK UNIFIED IDEOGRAPH-53D8}) missing from font(s) DejaVu Sans.
+  fig.tight_layout(); fig.savefig(out, dpi=120)
+
+=== frame 296 (0296.jpg) ===
+  命令朝向  +0°  -> 末点(x=+1.39,y=-0.06) 位移1.39m  末yaw= +16.2°
+  命令朝向 +45°  -> 末点(x=+1.36,y=+0.67) 位移1.51m  末yaw=  +6.2°
+  命令朝向 +90°  -> 末点(x=-0.02,y=-0.02) 位移0.03m  末yaw= +88.7°
+  命令朝向 -45°  -> 末点(x=-0.00,y=-0.01) 位移0.01m  末yaw= +89.4°
+  命令朝向 -90°  -> 末点(x=-0.02,y=-0.01) 位移0.02m  末yaw= -88.8°
+
+=== frame 593 (0593.jpg) ===
+  命令朝向  +0°  -> 末点(x=+1.31,y=-0.04) 位移1.31m  末yaw= +16.9°
+  命令朝向 +45°  -> 末点(x=+0.01,y=+0.00) 位移0.01m  末yaw= +46.1°
+  命令朝向 +90°  -> 末点(x=-0.00,y=-0.01) 位移0.01m  末yaw= +88.1°
+  命令朝向 -45°  -> 末点(x=-0.01,y=-0.02) 位移0.02m  末yaw= +85.3°
+  命令朝向 -90°  -> 末点(x=-0.02,y=-0.02) 位移0.02m  末yaw= -88.8°
+
+=== frame 889 (0889.jpg) ===
+  命令朝向  +0°  -> 末点(x=+1.51,y=+0.02) 位移1.51m  末yaw=  -9.4°
+  命令朝向 +45°  -> 末点(x=+1.35,y=+0.65) 位移1.50m  末yaw=  +4.1°
+  命令朝向 +90°  -> 末点(x=-0.01,y=-0.01) 位移0.02m  末yaw= +88.5°
+  命令朝向 -45°  -> 末点(x=-0.01,y=-0.02) 位移0.02m  末yaw= +86.5°
+  命令朝向 -90°  -> 末点(x=-0.02,y=-0.01) 位移0.02m  末yaw= -86.6°
+
+[verify] 图 -> outputs/verify_turn_gate.png

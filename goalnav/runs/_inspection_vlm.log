@@ -1,0 +1,52 @@
+/home/DongBaorong/.local/lib/python3.10/site-packages/torch/utils/cpp_extension.py:1964: UserWarning: TORCH_CUDA_ARCH_LIST is not set, all archs for visible cards are included for compilation. 
+If this is not desired, please set os.environ['TORCH_CUDA_ARCH_LIST'].
+  warnings.warn(
+mjcf found: /data/DongBaorong/BEVLOOK/robot_bev_sim/outputs/_sim_walk_colmapjoint_all.xml
+screeninfo error: No enumerators available, using default screen size: 1920x1080
+[巡检] A*路径96点; 设备簇4个: [(np.float32(8.2), np.float32(-1.2)), (np.float32(18.0), np.float32(-2.2)), (np.float32(25.8), np.float32(-2.9)), (np.float32(30.8), np.float32(-3.5))]
+/data/DongBaorong/BEVLOOK/robot_bev_sim/goalnav/pipeline/run_inspection.py:135: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+  ck = torch.load(os.path.join(RUNS, ck_name))
+[巡检] 加载 goalnav_gate.pt (cruise+横扫+命令门控原地转)
+  step  0 [CRUISE] pose=(5.8,-0.9,-0.14) 已检视=0 子任务发起=0
+Multiple -pix_fmt options specified for stream 0, only the last option '-pix_fmt yuv420p' will be used.
+  step 10 [TURN_TO_FACE] pose=(6.7,-1.1,-0.14) 已检视=0 子任务发起=1
+  step 20 [SCAN] pose=(7.0,-1.1,+1.27) 已检视=0 子任务发起=1
+  step 30 [SCAN] pose=(7.6,-1.2,+1.34) 已检视=0 子任务发起=1
+  step 40 [TURN_BACK] pose=(8.5,-1.2,+1.33) 已检视=1 子任务发起=1
+  step 50 [CRUISE] pose=(8.7,-1.2,-0.00) 已检视=1 子任务发起=1
+  step 60 [CRUISE] pose=(9.5,-1.3,-0.11) 已检视=1 子任务发起=1
+  step 70 [CRUISE] pose=(10.6,-1.4,-0.09) 已检视=1 子任务发起=1
+  step 80 [CRUISE] pose=(11.5,-1.5,-0.14) 已检视=1 子任务发起=1
+  step 90 [CRUISE] pose=(12.5,-1.7,-0.12) 已检视=1 子任务发起=1
+  step100 [CRUISE] pose=(13.5,-1.8,-0.11) 已检视=1 子任务发起=1
+  step110 [TURN_TO_FACE] pose=(14.5,-1.8,-0.11) 已检视=1 子任务发起=2
+  step120 [SCAN] pose=(14.8,-1.8,+1.24) 已检视=1 子任务发起=2
+  step130 [SCAN] pose=(15.5,-2.0,+1.25) 已检视=1 子任务发起=2
+  step140 [SCAN] pose=(16.4,-2.0,+1.25) 已检视=1 子任务发起=2
+  step150 [SCAN] pose=(17.2,-2.0,+1.25) 已检视=1 子任务发起=2
+  step160 [TURN_BACK] pose=(18.1,-2.1,+1.25) 已检视=2 子任务发起=2
+  step170 [CRUISE] pose=(18.3,-2.2,-0.10) 已检视=2 子任务发起=2
+  step180 [CRUISE] pose=(19.1,-2.4,-0.15) 已检视=2 子任务发起=2
+  step190 [CRUISE] pose=(20.1,-2.7,-0.13) 已检视=2 子任务发起=2
+  step200 [CRUISE] pose=(21.1,-2.8,-0.08) 已检视=2 子任务发起=2
+  step210 [CRUISE] pose=(22.1,-2.9,-0.09) 已检视=2 子任务发起=2
+  step220 [TURN_TO_FACE] pose=(23.1,-3.0,-0.07) 已检视=2 子任务发起=3
+  step230 [TURN_TO_FACE] pose=(23.4,-3.0,+1.40) 已检视=2 子任务发起=3
+  step240 [TURN_BACK] pose=(23.9,-3.0,+1.59) 已检视=3 子任务发起=3
+  step250 [CRUISE] pose=(24.1,-3.0,+0.12) 已检视=3 子任务发起=3
+  step260 [CRUISE] pose=(24.9,-3.1,-0.09) 已检视=3 子任务发起=3
+  step270 [CRUISE] pose=(25.9,-3.2,-0.10) 已检视=3 子任务发起=3
+  step280 [CRUISE] pose=(26.9,-3.4,-0.12) 已检视=3 子任务发起=3
+  step290 [TURN_TO_FACE] pose=(27.9,-3.6,-0.10) 已检视=3 子任务发起=4
+  step300 [TURN_TO_FACE] pose=(28.1,-3.6,+1.37) 已检视=3 子任务发起=4
+  step310 [TURN_BACK] pose=(28.7,-3.6,+1.54) 已检视=4 子任务发起=4
+  step320 [TURN_BACK] pose=(28.9,-3.7,+0.04) 已检视=4 子任务发起=4
+  step330 [CRUISE] pose=(29.5,-3.7,-0.10) 已检视=4 子任务发起=4
+  step340 [CRUISE] pose=(30.5,-3.8,-0.11) 已检视=4 子任务发起=4
+  step350 [CRUISE] pose=(31.5,-3.8,-0.11) 已检视=4 子任务发起=4
+  step360 [CRUISE] pose=(32.4,-3.7,-0.22) 已检视=4 子任务发起=4
+  step368 [DONE] pose=(33.1,-3.8,-0.27) 已检视=4 子任务发起=4
+[巡检] 完成! step368 到终点; 共检视4处(VLM发起子任务4)
+[done] 145s  检视4处
+  /data/DongBaorong/BEVLOOK/robot_bev_sim/goalnav/runs/inspection_colmapjoint_all_20260714_202919.mp4
+  /data/DongBaorong/BEVLOOK/robot_bev_sim/goalnav/runs/inspection_colmapjoint_all.mp4

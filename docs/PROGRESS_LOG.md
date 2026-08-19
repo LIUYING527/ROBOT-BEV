@@ -4,6 +4,407 @@
 > 格式固定：**做了什么 / 产出 / 结论 / 下一步 / 卡点**。
 > 全过程叙事见 [`RECONSTRUCTION_JOURNEY.md`]，本文件只记“每次”的增量。
 
+## 2026-08-19 —— 架构整合文档 + 真机部署方案文档
+
+- **做了什么**: 用户要两份文档：①当前架构整合 ②真机部署怎么做。三路事实核查(仿真全链源码+outputs产物/robot_control_current运控+robot_orig_code已部署DiffusionDrive/docs现有文档盘点)后写就。
+- **产出**: `docs/架构整合_当前全链_0819.md`(一页总览ASCII图/离线建图表/双脑NavCmd契约/RELOC双闸门/ALIGN→DOCK链/lab_mission CLI/环境产物速查/诚实残留6条/文档地图, 替代停在07-08的架构与现状_实时.md); `docs/真机部署方案_0819.md`(起点=robot_orig已在Orin实时跑通DiffusionDrive/硬件接口事实表含0.5s指令超时+无odom/Orin-vs-GPU服务器拓扑/逐模块移植清单/P0-P4分阶段/风险清单)。
+- **结论**: 真机部署最大两个gap是**status 8维定义不一致**(真机版=模式onehot+vxvy+axay vs 我们lab版=goal_ego/head_ego/vx/hist_w/gamma/mode)和**BEV范围不一致**(±32m NAVSIM直方图 vs 局部占据窗+时序历史)→方案A=改真机节点特征构造适配我们ckpt(推荐), 方案B=真机数据重训; **无里程计(指令回显非实测/轮速10s才刷)正好是RELOC周期纠偏的对症场景**, 漂移被每~2m纠偏周期清零; 尺度债0.70×在真机新场景用正确cam_height一次避开。
+- **下一步**: 用户审两份文档; P0冒烟(dry-run特征核对+RELOC runbook ABC)。
+- **卡点**: 无。
+
+---
+## 2026-08-13(晚) —— 回归头v4双域+全流程; 用户判"都没对准"→trace复核三修全愈; 周报+架构图v4
+
+- **做了什么**: v4双域头(真zed+机器人姿态42.7k)训完(val 5.1/6.4cm/2.4°)→真zed实测(all帧0.6-0.7cm/0.11°含记忆, val帧15.3cm/4.5°比v3的12-14cm略退=双域代价)→全流程跑(sim闸门accept仅2/9, GS兜底正确性不变; ⚠白桌假接收16.3cm一次=溅射区loss地形不可信, 被下游吸收)。**用户看视频判"都没对准尤其柜子"**→trace真位姿复核实锤: 柜dock横向+42cm(believed报0.0=缝检测锁错竖线)/三站yaw被EDGE伺服带偏-5.0/-6.4/-8.9°(渲染碎线族LSD融合≠地图front)/"front偏0.0°"=servo覆盖FRONT后自比同义反复。三修: ①缝/簇过节点投影u_node锚定窗(0.15/0.20W), 出窗→几何横向兜底; ②EDGE伺服|视觉-地图|>2°回滚地图front; ③落盘geo_face_dist/geo_lateral真值口径。
+- **产出**: 修复版全流程mp4(正名, v4坏对准版_v4badalign留档); `docs/周报_0812-0813_贴脸对接与回归头RELOC.md`(三块PPT版); `outputs/arch_diagram_v4.png`(RELOC子系统实框+ALIGN/DOCK底排); `scripts/diag_edge_yaw.py`(yaw扫描渲染+LSD斜率诊断)。
+- **结论**: 修复版trace真值=柜+0.4cm/0.74°、微-5.5cm/0.04°、桌+5.8cm/0.70°, 面距15cm believed≈几何; 三站EDGE全正确回滚(差>2°); 目检柜双门正脸居中无侧面(修复前露左侧面)。⭐教训: believed指标和视觉伺服都要独立几何复核, 溅射区渲染特征检测(缝/线/loss)一律不可信。
+- **下一步**: 用户验收修复版视频; 真机runbook B/C级; 白桌confirm(渲染天花板)/头sim accept率/尺度0.70×根治=已知残留。
+- **卡点**: 无。
+
+---
+## 2026-08-12 贴脸对接两连修（median穿模→p10→min(ED,GEO)）+ 交付版视频
+
+- **做了什么**：复盘0811 precdock首版日志发现三站对接全翻车（median被"看穿玻璃门"拉扯：铁柜读2.8m实际0.85m/显微镜双峰48↔6.7振荡/白桌ED无效）→v1改ED-p10+跳涨拒信+0.35m可信区+盲爬，跑完**用trace真位姿复核发现仍穿模**（believed 15cm，实际距节点仅1.3~2.6cm——ED-p10近距系统性过读10~25cm）→v2三修：①面距=min(ED-p10, 几何dist-FACE_OFF)（ED过读取几何下限，believed位姿RELOC残差0.5cm可信）②站位先居中再接近（0.35m处台面簇在-12°俯角FOV下缘外=v1"无簇"根因）③undock纯盲退。重跑出片。
+- **产出**：`outputs/lab_mission_110744_zed_front_perp_lvl_geo0804_lab_sb2_reloc_odom_precdock0812.mp4`（526帧35s：RELOC巡航纠偏+三站对准+⑩⑪confirm+15cm贴脸对接+撤离+回原点）；`lab_mission_reloc_odom_precdock_0812.json`；v1穿模版留档`*_v1OVERTRAVEL.*`（mp4/json/log三件套）。
+- **结论**：三站对接全部 面距15cm+横向居中**-0.4/-0.7/-0.6cm**+front≤0.98°；铁柜缝LSD站位6轮收敛-0.1cm；显微镜簇1822pt/白桌4515pt居中收敛。RELOC全程：漂移中位13cm→终横向中位0.9cm/bearing 0.7°；周期纠偏6次残差中位0.2cm。⚠诚实残留：白桌confirm又NOT-CONFIRMED(review-fail 1/3)=0804起老问题（站位渲染溅射+VLM边界掷硬币，前一天同管线3/3 YES）。⭐教训：对接指标必须trace真位姿复核，believed自报不可信。
+- **下一步**：周四交付（真机验证按runbook ABC三级）；可选=白桌confirm稳定性（多投票/换确认帧）、精对准回归头训练（GPU0/1空闲，脚本未写）。
+- **卡点**：跑lab_mission必须`/home/DongBaorong/discoverse_venv/bin/python`（系统python缺glfw）；GPU2-7被WangBizi starVLA占满。
+
+---
+---
+
+## 2026-08-11 GS重定位尺度根因实锤 + RELOC精定位闭环落地（周四交付冲刺）
+
+- **做了什么**：①三假设鉴别诊断（`gs_reloc_diag.py`，GT零扰动回归r=a+b·d）→根因=**全局尺度**（b=-0.30跨10帧一致，散布0.06；align的cam_height=1.2m假设错，110744手持绕看采集真实~1.71m→世界仅真实0.70×）；②`gs_relocate.py`加OBS_SCALE=0.70修复；③两参数标定（`gs_reloc_calib.py`）证无全局常数偏移（o≈0.004），残留=逐帧内容相关偏差；④RELOC接入lab_mission（`--reloc_demo`：漂移注入→伪zed观测(渲染ED÷0.70+σ1cm+1%+5%丢点)→GS优化纠偏→believed位姿align_front→真位姿测终误差，终loss>0.12拒收保护）；⑤精读4篇论文原文(Vesta/Qwen-3D/HumanCLAW/RynnWorld-4D)核实分析文档。
+- **产出**：`outputs/gs_relocate_110744s2/reloc_eval.json`+eval_scaled_0811.log（4档×24帧真zed评测）；`outputs/lab_mission_reloc_0811.json`+`lab_mission_110744_zed_front_perp_lvl_geo0804_lab_sb2_reloc.mp4`（357帧）；`scripts/gs_reloc_diag.py`/`gs_reloc_calib.py`/`gs_reloc_smoke_mission.py`。
+- **结论**：重定位(真zed,24帧)：**收敛域±0.5m/±25°内初误差完全吸收**，终误差=噪声底：**水平中位5.6cm(p90 8.9)/yaw 1.08°**（垂直13cm弱可观，导航用不上）；闭环三站：漂移16~25cm注入→**终横向0.2/0.3/3.5cm、bearing≤2.1°、front≤0.9°，VLM三站全YES**。4篇论文无一要求改架构——Qwen-3D几何解码grounding印证我们场景图路线；HumanCLAW"具身自我意识缺失"是RELOC的论文级motivation；分析文档核心方案C(VLM输出3D坐标)被Qwen-3D原文Fig.2批判+违反实测铁律，且编造了第5篇(VISReg未上传)。
+- **下一步**：周四晚前出三块PPT格式周报（尺度根因+精度表+闭环视频）；可选吸收=HumanCLAW执行前verifier、Vesta记忆模态消融(纯文本记忆学捷径→我们⑪key-frame已含图像)；彻底治尺度=重跑align cam_height=1.71+重建clusters/nav_ds（贵，暂缓）。
+- **卡点**：白桌站渲染溅射（off-path采集天花板）；lab_mission需PYTHONPATH=third_party/discoverse；世界系距离全为真实0.70×（与真机交互必须换算）。
+
+---
+---
+
+### 2026-08-06 —— 周报0802-0805 + 架构图v3更新
+
+**做了什么**: 用户要本周工作总结→`docs/周报_0802-0805_论文改进与搜索行为.md`(用户定三块PPT结构: 一=架构优化分析(⑦时序历史/⑧NavCmd/⑩⑪确认结构化/⑨搜索行为, 各配"为什么"+证据)/二=闭环效果表(loss0.272/三站全YES/搜索y=-5.1m/z场1.5°)+翻车修复+诚实残留/三=调研三优先+当前问题5条+下周P0-P2); 架构图v2(0715走廊版)过时→`scripts/draw_arch_v3.py`重画(加离线建图带: 3DGS深度监督+z场扶平→场景图RAG185节点; 慢脑=四段confirm+keyframe复核; 接口=NavCmd{L,τ,Φ}; 快脑=scene_gate+时序历史Wγ+骨架DFS搜索; 控制器=turn-then-go+safe_vel; 待接=GS重定位虚线框放中带右侧空白)。
+**产出**: 周报md(三块PPT版); `outputs/arch_diagram_v3.png`(目检五轮修重叠: 删"快脑(实时)"标签并入框内/待接框移出离线带/紫说明文字缩短右移避让NavCmd箭头/长虚线走底层z=2)。
+**结论**: 本周论文改进⑦⑧⑩⑪⑨全落地闭环验证, 搜索demo真探索; 最大悬念=GS重定位深度系统性偏差(-0.24~-0.66m)待定位。
+**下一步**: 下周P0=GS重定位深度偏差三假设验证(或转方案B zed融合点云配准); P1=搜索折返果断性/精对准回归头/白桌confirm多投票/建图粒度P1。
+**卡点**: 同周报§9(GS重定位断点/白桌confirm掷硬币/角落折返不果断/自研VLM仍挂/GPU排队)。
+
+---
+---
+
+### 2026-08-05 —— 高精度导航大调研(12路)+GS重定位落地试跑→撞见zed深度vs渲染ED系统性偏差(断点)
+
+**做了什么**: ①用户要"能接入我们架构的高精度导航方法"→12路并行搜索(VLN SOTA/扩散导航/场景图RAG/3DGS定位/末段/拓扑/BEV/主动感知/探索/空间记忆/GRPO/视觉伺服)→`docs/调研_高精度导航方法_0805.md`(Tier1直接落地/Tier2训练侧/Tier3方向印证)。②用户拍板"先试成功率最高+精度最高的"→选**GSplatLoc式render-and-compare重定位**(免训练): 写`scripts/gs_relocate.py`(zed npz观测深度 vs gsplat渲染ED, 世界系SE(3)可微参数化→colmap viewmat, coarse-to-fine Adam+Charbonnier+trim, GT加扰动评测协议)。
+**产出**: 调研文档; gs_relocate.py(可跑); outputs/gs_relocate_110744s2/(sanity json+viz)。
+**结论**: gsplat 1.5.3 viewmat梯度可微✓(⚠相机在场景背后→alpha=0→grad=0假阴性); **但GT零扰动sanity漂到25.5cm/yaw2.12°=不合格**, 根因=渲染ED深度比zed度量深度系统性偏小(median -0.66/-0.26/-0.24m, 满幅均匀非局部artifact)。
+**下一步**: 查三假设(按嫌疑): ①zed点云参考系≠左目光学系(原点常数平移→视角相关偏差, 恰好解释跨帧不一致); ②全局尺度误差(⚠此前backproject等几何验证全是同一换算自洽, zed深度是第一个独立度量源!); ③ED期望深度vs首面深度偏差。备选方案B=zed融合点云当配准地图(同传感器偏差自抵消)。
+**卡点**: 上述偏差未定位前, 重定位精度不可用; 用户关机搬运, 现场已存memory(gs-reloc-depth-bias-breakpoint-0805)。
+
+---
+--- —— z场扶平+正脸线标注落地, v5任务重跑2/3primary(白桌=渲染天花板Qwen掷硬币); ⚠我两错: 地面带测错+忘带--targets
+
+**做了什么**: 用户判"正对和地平面都有问题, 正对向量不对"→双修+重跑。
+- **地平面**: 实测lvl世界残斜(逐waypoint局部平面)mean2.9°/median3.2°→写`apply_zlevel_110744.py`(逐waypoint平面拟合粗场→粗场±5cm残差带取真地面→0.25m格中位数精修场, z'=z-h(x,y)竖向反弯, world/render两ply+npz+clusters同步)→**median 3.17→1.52°**(尾部粗糙点是重建本底噪, 后处理极限)。⭐踩坑两连: ①首版|z|<0.2带测地面混进家具底→越扶越歪(回滚); ②扶平前后度量必须同一选点法(最低切片法在扶平后选到不同点子集=假读数), 一致口径=±0.15带逐waypoint。
+- **正对向量**: 旧FPV法线箭头正视时退化(俯拍22°下投成竖线扎地/缩点)→改画**正脸线**(过目标⊥front的水平线段±0.3m, 正对时水平压中心)。
+- **重跑(v5快脑+geo0804)**: 首跑显微镜NOT-CONFIRMED=⭐**我忘带--targets zed_front_perp_lvl.json**(默认zed.json无front_deg→align_front退回face()→站位1.66m远显微镜太小, Qwen判"tv"); 带对后**柜YES(primary)/微YES(primary, 0.85m站距berr-1.0°)/白桌NOT-CONFIRMED(review-fail 0/3, Scene/Action矛盾已标记)**。
+- **白桌A/B对照实验**(同机位lvl vs zlvl渲染各一帧): 溅射水平几乎一致→**z场没把渲染变差, 白桌confirm翻车=站位渲染天花板+Qwen边界掷硬币**(0803过=复核帧运气好)。
+**产出**: `lab_mission_110744_zed_front_perp_lvl_geo0804_lab_v5_sb2.mp4`(400帧) / apply_zlevel_110744.py / zlvl两ply+软链(旧lvl留盘) / `docs/架构详解_小白版_0804.md` / 审计lab_mission_slowbrain_0804.jsonl / A/B图ab_lvl.png ab_zlvl.png。错靶首跑视频改名_WRONGTARGETS留档。
+**结论**: 运动层三站全准(距0.85~1.03m, berr≤1.9°, front_err≤1.2°); 地平面对视频中位1.5°可读; 正脸线标注直观; v5快脑任务腿无退化(搜索数据没污染巡航)。白桌confirm稳定性=渲染天花板问题, 可选=确认改多投票。
+**下一步**: (待用户定)白桌confirm多投票/建图粒度P1/真机。
+**卡点**: 无。
+
+---
+---
+
+### 2026-08-04 —— ⭐v5搜索行为闭环demo: 首跑翻车根因=search循环漏调hist_update(W8状态+单帧BEV离分布); 修后400步原位→实验室最深处
+
+**做了什么**: 接0803(v5快脑+探针全过)跑`lab_mission.py --search_demo 400`闭环搜索demo。
+- **首跑翻车(0803版代码)**: 30步内机器人鼻子楔进障碍, 之后在~1m泡泡里原地打转400步(yaw 2°→580°, v≈0.01)。逐帧+逐行锤出**两个叠加根因**: ①⭐**search循环从没调`hist_update()`**(全repo只在cruise循环line367调)→_hist_buf恒空→`if hist_w>0 and _hist_buf`守卫回退单帧BEV→**status声称W8γ0.9但BEV是单帧=训练/测试输入严重离分布**(搜索训练样本全带W4-8覆盖式历史), 模型直接开进墙; ②**demo控制器只能vx>0前进**: 搜索GT含死胡同折返(训练数据yaw恒朝行走方向), 回退轨迹被"前视点比例转向"译成贴墙打转, 且vx有0.10下限楔死也停不下来。
+- **修(lab_mission.py search块)**: 循环内加hist_update(); 控制器改**turn-then-go**(|head_err|>0.6=前视点在背后→先原地转执行折返, 否则比例跟), 去掉vx下限, 贴障走已有的safe_vel势场逃逸(减速+朝空方向转, ESC标记上HUD); 输出改名_0804(0803失败版留档不覆盖)。
+**产出**: `outputs/lab_search_demo_lab_v5_0804.mp4`(400帧) + 0803失败版留档对照。
+**结论**: ⭐修后**真探索**: 原位(0,0)→穿越整个任务区→实验室最深处(y=-5.1m, 铁柜/显微镜之外), FPV全程干净贴采集轨迹, goal=(0,0)+mode=1契约闭环成立(快脑自己覆盖式走位, 无慢脑无目标点)。**残留(诚实)**: 最深处角落口袋徘徊(v0.01~0.02, 折返大角度轮转与safe_vel逃逸互相打断, 净位移慢)——"死胡同果断折返"还不够脆, 可选改进=折返转向commit(转完才许平移)/更长前视/角落搜索数据加权。
+**下一步**: (待用户定)用户看0804视频 / 折返果断性改进 / 建图粒度P1 / 真机。
+**卡点**: 无。
+
+---
+---
+
+### 2026-08-03 —— ⭐用户催论文改进项落地: ⑧结构化参数包+⑩四段推理链+⑪key-frame复核 一次闭环三站全YES
+
+**做了什么**: 用户否"建图粒度剖析不痛不痒"→掰回Qwen-RobotNav论文改进清单(周报§6)优先。三项全落`scripts/lab_mission.py`:
+- **⑧慢脑→快脑结构化参数包(论文nav(L,τ,Φ), ⭐⭐⭐P0)**: `NavCmd{L=模式, τ=(名,坐标), bearing/dist空间提示, Φ=(W,γ,vx)}`每腿派发+落盘; `PHI`字典集中"模式→观察配置"映射(巡航W2γ0.7vx0.5/转向W8γ0.85vx0.0), cruise改收phi参数(不再读全局args, 消灭日志与实际不一致)。
+- **⑩四段推理链confirm(⭐⭐P1)**: History(任务上下文已知)/Scene(VLM短描述"main object in center?")/Progress(几何量dist+front_err)/Action(严格yes/no同0802判据)——分段独立不串联(弱VLM喂回自己的话会糊), 段段落盘, scene/action矛盾自动标(审计定位是哪段错)。
+- **⑪判no时key-frame复核(⭐⭐P1)**: 接近过程每6帧存证据帧(panel复用渲染零开销), 判no挑"距离+方位差"top3(帧距≥8)逐帧同判据复问, **≥2帧yes才翻案**(单帧防侥幸); 机器人不动只回查已有证据≠0730禁的扫描挽尊。
+- 输出版本化加_sb2后缀(不覆盖0802视频)。
+**产出**: `outputs/lab_mission_110744_zed_front_perp_lvl_geo0731b_lab_v4_sb2.mp4`(392帧7.42m) / `outputs/lab_mission_slowbrain_0803.jsonl`(⑧包+⑩四段+⑪证据全链)。
+**结论**: ⭐**白桌NOT-CONFIRMED被⑪治住**: Action仍no(站位直视镜头的渲染溅射是真的, Qwen判no诚实)但复核f324(berr45°)/f288(berr51°)两帧yes→2/3翻案CONFIRMED(review); 铁柜/显微镜primary直过(Scene自答"cabinet"/"microscope"=四段互证)。闭环三站全YES(v4快脑未动, 运动行为与0802逐帧同)。
+**下一步**: ⑨骨架化搜索行为数据(快脑"找目标"行为空白, 需训练) / 用户看_sb2视频 / 建图粒度P1(诊断已完成: node130=SAM掩码溢出非合并阈值, node47怪物=BG_CLASSES缺RAM场景词)。
+**卡点**: 自研VLM 10.0.0.18仍挂, 用本地Qwen3.5-4B; GPU全卡别人在训, ⑨训练要排队。
+
+---
+---
+---
+
+### 2026-08-02 —— ⭐观察策略参数化(论文最核心claim)落地: BEV-only参数化时序历史, v4快脑loss0.272闭环三站
+
+**做了什么**: 用户拍板BEV-only(FPV单帧留给慢脑; token级FPV历史在±32m/8×8=4m/格下跨位姿对不齐被否)。
+①`stage_b_eval.py`加`lidar_feature_fov_hist`: 历史位姿FOV锥点(世界系选择)→当前ego系单次变换→γ^lag种子确定性保留(衰减=遗忘)→拼接调一次官方points_to_bev_tensor(官方/模型架构零改动); W=0与旧版逐位一致(单测6项全过scripts/test_lidar_hist.py); 合并后重施hypot>0.2近距掩码(防ego原点假亮斑)不施FOV锥(身后点正是意义)。
+②`gen_nav_dataset_lab_v4.py`: 基数据集与v3逐位一致(新随机性全走RandomState(1)), 每样本hist_poses(8,3@0.4m)/W/γ, P(W=0)=0.25(保护run_inspection等旧脚本单帧分支), 596样本。
+③`train_goalnav_gate_v3.py`: (W,γ)走status[5]/status[6](全repo核实恒0)→暖启v3→`goalnav_gate_lab_v4.pt`(240ep loss0.272<v3的0.327, 门1.000/0.000); ref位姿FOV选点缓存; 转向行带源样本(W,γ)。
+④`lab_mission.py`: 位姿环形缓冲(0.4m/0.3rad入队留8), dd_traj分相位观察参数(巡航W2γ0.7/转向W8γ0.85)+HUD显示[W2γ0.7]+顺手修v2遗留vx mismatch(巡航0.5/转向0.0)。
+⑤`probe_obs_params.py`: 固定观测扫W×γ→8面板图(每面板=该参数实际BEV+轨迹)。
+**产出**: goalnav_gate_lab_v4.pt / nav_ds_..._v4 / obs_param_probe_lab_v4.png / `lab_mission_110744_zed_front_perp_lvl_geo0731b_lab_v4.mp4`(396帧7.66m)。
+**结论**: ⭐闭环三站全到全对准(bearing-front≤2.5°, 白桌yaw_err0.9°); 铁柜YES/显微镜YES/白桌NOT-CONFIRMED=⚠VLM是自研10.0.0.18又挂(Connection refused)切的本地Qwen3.5-4B(scripts/vlm_server_local.py GPU3, VLM_URL=127.0.0.1:8152)+白桌站位渲染溅射严重, 非运动问题(v3同站位robo2vlm判YES=Qwen严robo2vlm宽老差异)。探针: 目标寻求对观察参数不变(好事), 局部路径形状随W系统性平滑偏移(横向+0.12→+0.47m)=模型确实在用历史。
+**下一步**: (待用户定)建图粒度P1(过合并拆node130/20) / 节点属性化 / 真机部署。
+**卡点**: 自研VLM服务器10.0.0.18:8152又不在线(0711同款), 本次用本地Qwen顶替。
+
+### 2026-07-31(续5) —— P1训练经验全落地: v3(条件连续化+减速GT+vx随机)闭环全YES + 周报文档
+
+**做了什么**: `scripts/gen_nav_dataset_lab_v3.py`(起点xy±0.25m/yaw±0.4连续抖动, 目标±100°/1~6m连续采样, ⭐减速段GT前疏后密实测间距比0.08, vx~U(0.3,0.8)随机化存meta)→596样本(429cruise+167decel); train_goalnav_gate_v2加--ds_suffix+vx进status[4]→`goalnav_gate_lab_v3.pt`(240ep loss0.327, 门1.000/0.000); 闭环`..._geo0731b_lab_v3.mp4`(401帧, 三站全YES, 帧数多=减速GT到站更稳); P1-2分域归一化`outputs/traj_norm_scales.json`(lab1.56/走廊3.49/NAVSIM32m)。用户要"改动+意义写进周报"→`docs/周报_0727-0731_场景图RAG与论文训练经验.md`: §1场景图算法目标/框架/输入中间状态输出+3张当时实景图(用户指出节点标注图=3D点簇脏vs外观卡片=真实crops干净), §4六项已完成改动各配意义+诚实边界(观察策略参数化未动列下周)。
+**产出**: goalnav_gate_lab_v3.pt / nav_ds_..._v3数据集 / traj_norm_scales.json / 周报md+主图week_summary_0727-0731_stations.png / v3闭环视频。
+**结论**: 论文数据+接口层经验全部落地并闭环验证; 观察策略参数化(时序历史作条件=论文最核心)是下一个点上的活。
+**下一步**: (待用户定)观察策略参数化(快脑加参数化历史) / 建图粒度P1 / 真机部署。
+**卡点**: 无。
+
+### 2026-07-31(续4) —— Qwen-RobotNav训练经验落地P0: 数据再平衡+条件dropout→快脑v2闭环全YES
+
+**做了什么**: 用户供论文PDF精读37页(核实版分析+另一个AI多处编造纠正, 见memory qwen-robotnav-paper-verified-0731), 拍板按计划执行训练侧经验。P0-1+P0-2合一实现`goalnav/pipeline/train_goalnav_gate_v2.py`: ①数据再平衡(论文§4.1.2前进45%规则)→按GT末点偏航角分类: 直线(<10°,191个)只留45%, 中间/转向全留, 决策点(≥35°)复制×2, 选择先于featurize省算力(621→656); ②条件dropout(论文§4.1.5同轨迹多先验变体)→直线样本30%追加"目标点置零"变体(同obs同GT仅status目标=0, 直线时走廊跟随≈目标跟随监督不冲突); warm-start=goalnav_gate_lab.pt。
+**产出**: `goalnav/runs/goalnav_gate_lab_v2.pt`(240ep loss 0.864→0.440, 门保持前向1.000/转向0.000) + 闭环`lab_mission_110744_zed_front_perp_lvl_geo0731b_lab_v2.mp4`(335帧): **三站VLM confirm全YES(v1版白桌NOT-CONFIRMED)**, ALIGN bearing-front≤1.9°, 巡航平滑(wz std 0.26)。旧版0731b改名_lab.mp4保留。
+**结论**: 论文数据分布规则在我们pipeline直接有效; 条件dropout与gate机制兼容(门值没退化)。
+**下一步**: P1-1条件连续化+随机化(Phase2数据生成器)→P1-2分域归一化。
+**卡点**: 无。
+
+### 2026-07-31(续3) —— ⭐渲染几何根本没扶平(CaptureFPV吃pre-align ply)→补同步渲染ply, 地面终平
+
+**做了什么**: 用户判"虚线确实对于地面是歪的"→查出**续2的untwist只作用在world ply(占据栅格用), 而FPV视频是CaptureFPV渲染gs_vggto_<session>.ply(pre-align归一化模型)+npz刚性映射→画面一点没变**(0731a视频=没扶平)。写`apply_untwist_render_110744.py`: pre-align ply反归一化→colmap帧→刚性映射world帧→施同一warp场→逆变换回存`gs_vggto_colmapjoint_110744s2_lvl.ply`(软链改指,bak保留; quats用共轭旋转Rz⁻¹R_wRz)。LSD零交叉在扶平渲染上复测: 柜166.6/微168.7不变, 白桌LSD被溅射打败(沿用真图实测0°)。
+**产出**: `outputs/lab_mission_110744_zed_front_perp_lvl_geo0731b.mp4`(317帧): 巡航帧全实验室水平线平行虚线✓ 显微镜台沿横平✓ 柜YES/微YES/白桌NOT-CONFIRMED(VLM如实判no, 绿X压桌上几何对, 白桌confirm老毛病=类别歧义)。
+**结论**: ⭐⭐**改几何必须想清哪份文件进哪条渲染路径**: CaptureFPV=pre-align ply+npz映射(视频画面), world ply=占据栅格/BEV, 两者要同步扶平; quats共轭旋转别忘。LSD零交叉在干净渲染上可复现(166.6/168.7两版一致=方法稳)。
+**下一步**: 用户确认0731b版(重点看地面)→P1建图粒度/真机部署。
+**卡点**: 无。
+
+### 2026-07-31(续2) —— 世界局部扶平(untwist)+LSD零交叉实测front+站距0.85m
+
+**做了什么**: 用户判perp版"离得太远+还是没垂直桌子平行线"。两病根: ①**世界本身空间渐变扭曲**(逐waypoint测地面: 主区3.6~4.2°@az19°, 南端铁柜区0.25~1.9°——07/24版untwist没扶干净)→新写`apply_untwist_110744.py`(逐waypoint局部地面法线→最小旋正→空间kNN平滑→逐高斯近邻混合旋绕局部锚点, 同旋quats), 产物`gs_vggto_..._world_lvl.ply`+npz/targets/clusters同步变换(全有_PRELVL0731备份); ②**显微镜front的PCA方位角被邻物污染偏15°**(-177错)→⭐**LSD线检测零交叉实测**: 水平线倾角随yaw线性过零(柜166.6/微168), 白桌用真采集帧LSD≈0°→**front=柜167/微168/桌0**。站距1.2→0.85m。
+**产出**: `outputs/lab_mission_110744_zed_front_perp_lvl_geo0731.mp4`(319帧): 三站0.85m, ALIGN bearing-front≤2°/横向≤0.03m, VLM confirm全YES, 台沿横平。
+**结论**: ⭐台面/地面厚板SVD法线不可作微调依据(多层结构折中, 旋正后重测自相矛盾); **视觉零交叉(LSD线倾角vs yaw)才是"正"的直接度量**; PCA边方向须防邻物污染(显微镜93°错, 实测边~78°)。untwist残余: 台面拟合仍1~2.3°(重建非刚性扭曲, 平滑纠正是极限)。
+**下一步**: 用户确认perp_lvl版→P1建图粒度/真机部署。
+**卡点**: CG traj.txt未随untwist变换(重跑三角化才需要, 已记脚本docstring)。
+
+### 2026-07-31(续) —— "正"=垂直于桌面平行线: front改点云PCA边法线, 三站全正+VLM全YES
+
+**做了什么**: 用户判0731版"还是斜的"并定义"正=垂直于桌面的平行线"→0730检测射线圆均值front全错的原因坐实: **采集轨迹沿y走在房间西侧, 检测弧全在斜侧, 最大框射线均值继承斜视**(柜-135.7/微163.3/桌-38.1分别偏59/14/32°)。修法=点云紧裁PCA: 目标GT点附近小半径+台面/立面高度带→长轴=平行线方向(柜75°/微台93°/桌84°, 紧裁稳定ratio4~25), front=长边+90°取机器人侧→**柜165°/微-177°/桌-6°**。渲染验证三视角平行线横平后写`lab_mission_targets_zed_front_perp.json`重跑。
+**产出**: `outputs/lab_mission_110744_zed_front_perp_geo0731.mp4`(332帧): ALIGN三站bearing-front≤0.5°/横向≤0.01m, **三站VLM confirm全YES(白桌正视图干净也YES了, 上版NOT-CONFIRMED)**。
+**结论**: ⭐front正确求法=几何边法线(点云PCA), 不是检测射线统计(检测弧有偏就全偏); 紧裁(半径≤0.7m+窄高度带)是PCA稳定关键, 大裁必被邻桌/墙污染(白桌1m裁给出107.6°假边)。
+**下一步**: 用户确认perp版→P1建图粒度/untwist/真机部署。
+**卡点**: 无。
+
+### 2026-07-31 —— 正面向量标注两bug修复(用户判"向量指的正对方向都不对")
+
+**做了什么**: 抽0730定稿视频三站帧坐实: ①FPV青箭头从目标沿front_deg(=观察方向, 相机→目标)画→扎进目标内部, 应画正脸外法线front+180°; ②BEV品红箭头把世界系(cos th,sin th)直接当heading-up ego系分量, 少ego-yaw旋转→三站歪的方向各异。修lab_mission.py panel绘制(FPV取反/BEV增量=fwd-cos(th-yaw),right+sin(th-yaw))+输出固化_geo0731后缀。
+**产出**: `outputs/lab_mission_110744_zed_front_geo0731.mp4`(316帧, BEV箭头两站都从黄星直指红ego点, FPV箭头指出柜面朝向观察者; 任务行为与0730完全一致=ALIGN收敛/白桌NOT-CONFIRMED如实)。
+**结论**: 只是标注层bug, 运动层(站位/ALIGN/yaw_err≤1.1°)无错; front_deg语义=观察方向(机器人yaw), 画"正面"向量必须取反, BEV画世界向量必须先转ego系。
+**下一步**: 用户确认0731版→P1建图粒度/untwist/真机部署(同0730断点)。
+**卡点**: 无。
+
+### 2026-07-30(续2) —— 正对闭环ALIGN+全向量标注定稿; ⚠三角化窄基线教训+我520/640检查bug
+
+**做了什么**:
+- **用户连否"还是歪/没对正"→逐层锤**: ①"正对"真义=视线垂直目标正脸(0722用户定义桌沿横平), 只打目标方位角不够; ②正面方向取自**节点最大检测帧的射线方位加权圆均值**(检测器在正脸视角框最大最稳, RAG-native): 铁柜-136°(门冲东北, 推翻墙法线180°假设)/显微镜163°/白桌-38°(与老管线手挑#214同向); ③cruise 0.15m容差→站位偏离正面轴, 打bearing≠front实测偏7~12°→**align_front闭环**: 转front yaw+位置投影到正面轴横向残差全向vy步进消除(纯几何零bbox), 三站收到横向偏移≤0.04m/bearing-front≤±1.8°。
+- **用户"把正对用向量标出来"→panel全标注**: FPV=中心十字(黄)+目标3D投影(绿X)+正面向量(青箭头)+人工水平基准线(白虚线)+front/yaw_err数字; BEV=目标星+正面向量箭头。
+- **⭐三角化教训(诚实研究结论)**: 用户判"标注都不准"深挖发现——铁柜检测来自单向窄弧(离散仅7.6°), 射线近平行→三角化点在深度方向系统性偏移(SW偏0.5m, 残差4.9cm只是自洽不是准); 穿刺法(射线×簇)也被过合并簇污染(38~73cm)。**三个目标当前建图粒度下图给不出干净中心点; zed GT(自动管线, 用户目检确认全对)胜出**→终版=GT点+检测正面方向。
+- **⚠我的检查bug(道歉记录)**: FPV实际宽640(视频1040=640FPV+400BEV), 我抽帧按520裁→"绿X偏右15%"等判断全错, 标注本身是对的(单元测试: 正前方投影=中心±0, 左右±0.3m→u±39px✓)。**教训: 量产物画面尺寸先看合成逻辑别拍脑袋**。
+
+**产出**: `outputs/lab_mission_110744_zed_front_geo0730.mp4`(316帧, 三站yaw_err≤1.1°, 绿X全压目标, 白桌站VLM如实NOT-CONFIRMED=画面杂判no) / `outputs/lab_mission_targets_zed_front.json` / `scripts/cg_triangulate_nodes.py`(含front_yaw) / align_front进lab_mission.py。
+
+**结论**: 正对三要素(站位上轴+朝向front+目标居中)闭环达成; 窄基线三角化不可信(离散角<10°时), 深度须多方向观测或外部源。
+
+**下一步**: (待定)①建图粒度P1(过合并拆 node130/20 区域); ②铁柜侧棱可站远到1.6m或修正门法线角; ③真机部署。
+
+**卡点**: 无。
+
+### 2026-07-30(续) —— 场景图可视化三轮 + 用户确认GT全对 + 节点多视三角化精化(GT-free出片)
+
+**做了什么**:
+- 用户二判视频"还是歪不对准"→实锤两病根: ①auto-roll逐位置查表=视角左右摇(用户明示"就平着呗"); ②打的是节点bbox中心, 而节点过合并(铁柜node130吞了扫地机器人+柜子, bbox 1.9×1.2m; 白桌node20是地板杂簇)。
+- **场景图可视化三轮**(用户"看不清轮廓"连否两版): v1稀疏实例色点云环绕=彩纸屑; v2稠密3DGS底座+全节点=仍乱; v3只高亮3目标/三站锐利渲染+投影=`cg_stations_check_0730.mp4`(点簇)与`cg_stations_bbox_0730.mp4`(open3d官方OBB线框, 别手推棱边会连错)→**用户确认zed GT X全对, 节点框普遍过大错位=过合并是病根**。
+- **⭐用户点醒"crops那么好为啥不用"→节点多视三角化**(`scripts/cg_triangulate_nodes.py`): 节点存了20次检测(image_idx/xyxy/conf=crops来源), bbox中心射线(该帧c2w+内参)最小二乘求交+0.15m修剪。vs用户确认的GT: 显微镜50→28cm/白桌88→38cm/铁柜57cm(=物体中心vs GT表面点参照差); 射线残差3.4~9.7cm=检测本身干净, 且残差可作节点质量诊断。渲染验证GT与三角化点落同一物体。
+- **出片**: `lab_mission_110744_rag_tri_geo0730.mp4`(304帧, roll=0平走/三角化targets/站位avoid互斥0.6m防两站撞点/无bbox伺服): 铁柜0.00°居中/显微镜-1.07°正中/白桌-3.04°(场景本身歪, 世界没untwist), 三站判断式confirm全YES, 全程GT-free。
+
+**产出**: `scripts/cg_triangulate_nodes.py`+`outputs/lab_mission_targets_rag_tri.json` / `cg_scenegraph_bev_mission_0730.png`(任务区节点编号图) / `cg_scenegraph_orbit{,_dense}_0730.mp4`(被否两版留档) / `cg_stations_{check,bbox}_0730.mp4` / `lab_mission_110744_rag_tri_geo0730.mp4`。
+
+**结论**: 三角化是RAG-native的节点精化正解(图自己的检测数据, 无外部拐杖); zed GT(自动管线产出)经用户目检确认可当验证基准。
+
+**下一步**: (待定)①白桌站-3°静态斜→untwist实验室世界扶平(坐标变, targets/clusters重变换); ②建图粒度P1课题(合并阈值太激进=节点过大); ③真机部署。
+
+**卡点**: 无。
+
+### 2026-07-30 —— 用户否掉0729版RAG闭环(假confirm+歪+贴脸)→掰回RAG原生几何链(零bbox)
+
+**做了什么**:
+- **用户判0729版`lab_mission_110744_rag.mp4`效果差**: 复核实锤——①站位姿态继承绕看采集帧(带roll/pitch)=画面歪, 三站err_cam_to_gt_deg=-19.2/+17.3/-17.6°全没正对; ②显微镜站位离节点0.11m=贴脸全帧糊; ③confirm=bbox存在性→铁柜站对着白桌也CONFIRMED(假YES); ④bbox大多帧没画上+confirm文字跨站残留, 不可审核。**用户点破架构漂移: 场景图RAG本是替换几何部分的(locate_target/bbox伺服/反投影), 0729深夜为让伺服收敛把旧拐杖捡回来=走回头路。**
+- **掰回`scripts/lab_mission.py`**: 删`_vlm_bbox`/`_turn_to`/`servo_approach`(bbox三件套)+`--standoffs`(采集位姿json)+`standoff_at`墙法线(手搓几何)+SRC源帧confirm。`find_standoff`重做: 位置=采集轨迹上最正对目标的帧(on-path保渲染锐, 采集yaw只用于选位置打分), **朝向=atan2(节点-站位)纯几何解析**, 距离约束[0.8,2.0]m偏好1.2m。confirm=对实时水平渲染图(roll=0)做判断式yes/no, 判no如实NOT-CONFIRMED不挽尊。每腿清空VLM标签防跨站残留。
+- **重跑**: 三站站位距目标1.07/0.91/1.32m(原0.11贴脸消除), face收敛残余-2.3/+2.1/-1.5°, 三站VLM判断式confirm全YES(这次是对着水平正视图判的), 7.65m/319帧。逐帧目检: 画面全水平、铁柜站正对白玻门柜、显微镜站正视桌面设备、白桌站对小桌, 无贴脸无歪。
+
+**产出**: `outputs/lab_mission_110744_rag_geo0730.mp4` / 改版`scripts/lab_mission.py`。⚠首跑曾覆盖旧`lab_mission_110744_rag.mp4`(0729坏版, 反正被否, 但覆盖本身违反版本化铁律, 已在脚本输出名固化_geo0730后缀)。
+
+**结论**: **RAG原生链路成立——节点3D坐标直接出站位+朝向, 环里零bbox**, 效果立杆见影(歪/贴脸/假confirm三病同治)。face()纯几何朝向收敛±2.3°内, 节点坐标0.5~0.6m误差在1.2m站距下目标仍居中区域, 判断式confirm够用。
+
+**下一步**: (待用户看视频确认)若认可→此链路即真机部署模板(对齐`docs/真机部署路径_场景图RAG_0729.md`); 遗留=铁柜/显微镜节点仅1.1m间距的语义消歧仍靠判断式粗确认(P1空间消歧课题未动)。
+
+**卡点**: 无。
+
+### 2026-07-28 —— ConceptGraphs P0: 环境+数据+20帧检测验证跑通(场景图RAG方向)
+
+**做了什么**:
+- 续0727方案, P0官方ConceptGraphs落地。cg env补齐: Grounded-SAM@a4d76a2(GroundingDINO需`--no-build-isolation`)+segment_anything+RAM(Recognize_Anything-Tag2Text软链`ram/`进GSA根+fairscale)+gradslam@conceptfusion+chamferdist。坑: supervision必须0.14.0 / nvidia-cudnn-cu12装坏需force-reinstall / GDINO的bert-base-uncased走`HF_ENDPOINT=https://hf-mirror.com`。
+- 三权重下载齐(GSA根): ram_swin_large_14m.pth(5.6GB)+groundingdino_swint_ogc.pth+sam_vit_h_4b8939.pth。
+- 数据零新采集: `scripts/cg_prep_110744s2.py` 把110744s2(510帧)转Replica格式——cameras.npz w2c逆→c2w写traj.txt, ZED点云npz z通道(mm)→uint16深度PNG(scale1000), 510/510帧全有深度; dataconfig `lab/lab110744s2.yaml`。
+- **20帧检测小验证(方案第七节第1步)通过**: RAM开集打标52类含microscope/cabinet/table/workbench/drawer/equipment/robot——家居→工业域差担忧解除, 目检框+SAM掩码质量正常。GPU2上~4.25s/帧。
+
+**产出**: `outputs/cg_lab110744s2/lab1/`(results/+traj.txt+gsa_vis_ram_test20/+gsa_detections_ram_test20/+gsa_classes_ram_test20.json) / `scripts/cg_prep_110744s2.py`; 全量检测(stride2, 255帧)已后台开跑。
+
+**结论**: 官方链路在我们数据上work, 域差不是问题; 可按方案继续P0后半。
+
+**下一步**: 全量检测→incremental mapping(cfslam_pipeline_batch)→caption(LLaVA或换自研Infinite VLM)→build_scenegraph(openai调用→本地Qwen)→P1 RAG挂载lab_mission对比zed.json真值。
+
+**卡点**: GPU全卡繁忙, 只能插空用GPU2(~32G空闲); LLaVA-7B老commit权重还没下。
+
+
+### 2026-07-27 —— VLM时序慢脑(多帧+长记忆)走廊落地 + 能力边界实测 + 场景图RAG方案研究
+
+**做了什么**:
+- **能力边界探测**(走廊nav_ds_real实测, 自研Infinite VLM 10.0.0.18): ✅多帧ANY检测(K≤6)可靠(prompt须"visible in ANY"式) ✅window_last末帧聚焦可用 ✅文本任务记忆注入可用 ⚠pick-closest时序定位只近似 ❌相位3分类全答LEAVING ❌16帧长程枚举复读退化+37s ❌**流式=服务器不支持**(实测TTFB=总时长一次性返回, 替代=短答先出)。
+- **离线评测** `scripts/eval_temporal_slowbrain.py`(219帧×3模式657查询): single精确0.344/召回0.824 → **window_last精确0.402(+5.8pt, FP 80→61)**/召回0.804; window_any无提升。分歧帧目检: 压掉的主要是"远处可见泵"真误报(对), 但上下文污染也会新增少量误报。判据措辞必须和单帧同义, 否则问法本身引入yes偏置(踩坑)。
+- **接入闭环**: 新建`scripts/vlm_temporal_slowbrain.py`(TemporalSlowBrain: 滑窗/detect三模式/classify_facing带记忆/stats); `run_inspection.py`加`--vlm_temporal`(geo_vlm面向分类单帧→滑窗+记忆注入, 结束打印慢脑统计)。
+- **走廊demo**: `--geo_vlm --vlm_temporal --unify_occ --occ_thr12 --speed0.7` → **1066步280s 8/8全检视DONE**, 慢脑8次调用均1.21s, 记忆8条全确认(返程复巡是既有架构行为, 记忆未改判决=4站全真泵)。
+- **场景图RAG方案研究**(用户0724知识库两论文, 新方向=3D场景图替代几何部分): 查证**ConceptGraphs=ICRA2024**(笔记写CVPR2025有误)+**OpenFunGraph=CVPR2025 Highlight**; 读官方repo README(posed RGB-D输入/Grounded-SAM+LLaVA老commit/GPT-4建边)。写`docs/场景图RAG替代几何_方案研究_0727.md`: 替locate_target/lab_locate_clusters/device_clusters, 保留A*占据层; 110744s2=510帧posed RGB-D正是标准输入; P0官方ConceptGraphs跑通(GPT-4→本地Qwen)→P1 RAG挂载lab_mission→P2 OpenFunGraph功能边; 风险=家居→工业域差先20帧小验证。
+
+**产出**: `goalnav/runs/inspection_geovlm_temporal_0727.mp4` / `scripts/vlm_temporal_slowbrain.py` / `outputs/vlm_temporal_eval/`(jsonl+summary) / `docs/场景图RAG替代几何_方案研究_0727.md`。
+
+**结论**: 时序窗口对检测是真实但温和的提升(+5.8pt精确率), 非银弹; 记忆注入链路已通, 真收益要等场景图RAG(检索式记忆后端)。VLM时序能力边界已摸清, 不可用项别再试。
+
+**下一步**: (待用户确认)场景图P0=官方ConceptGraphs跑110744s2。**卡点**: 8卡全占(GPU3挤22GB跑的demo); 代理7897死/17897活。
+
+---
+
+### 2026-07-21(晚) —— 室内110744断点续跑: 全帧剔糊帧重训(f-827) + capcam三方对比定论=stride2最佳
+
+**做了什么**:
+- **接断点**: 会话掉线时 `110744f`(全帧1020剔运动糊帧后剩827干净帧)的3DGS训练被杀在step3400、`.ply`未存。确认进程已死、session目录(`outputs/vggto_colmapjoint_110744f/`,827软链帧+cameras.npz+recon.ply软链复用主重建)完好→**GPU3按hqbest配方重新拉起训练**(`ITERS=20000 SH3 UPSAMPLE1.0 DEPTH_SUP DEPTH_W0.4 ANTIALIAS REG_SCALE0.01 APPEARANCE MASK_OVEREXP`)→致密N=1.076M剪枝后**531k高斯**(loss0.08~0.25)→`align --crop`地面1.73°(827wp span6.5×1.8m)。
+- **⭐capcam三方对比判定采用哪版**: 写`scripts/_cmp_lab_versions.py`, **用原始逐帧真外参`_Vs[j]`渲染**(⚠踩坑: 先用`_Vs_smooth`平滑外参→110744是绕看转身采集, ±7帧平滑把差异大视角平均→假糊, 改原始外参才真实)。stride2缺备份norm.npy→复现训练归一化逻辑(相机中心均值+均距)重算, 与备份npz的center/s_norm完全一致=复现正确, 搭临时s2 session(强制sparse/0的510帧模型绕开CaptureFPV优先选sparse/1的76帧小模型bug)。
+
+**产出**: `outputs/gs_vggto_colmapjoint_110744f{,_world}.ply`(531k, 实验记录非交付) / 对比图`outputs/recon_verify/lab_110744_stride2_only.png`(stride2锐) + `lab_110744_full_vs_f_rawV.png`(full/f都糊) / 脚手架s2 session(软链+重算norm.npy)。
+
+**结论**: ⭐**stride2(596帧COLMAP→510注册, 1.1M高斯loss0.05)渲染明显最锐**(桌/黄设备/椅/墙照片清晰贴合真实图); full-1020(510k)和f-827(531k)全程发糊, f比full略好但都够不到stride2。**全帧回退真因=位姿质量**: stride1的1020帧COLMAP位姿更噪(帧多+快速转身糊帧→BA更难→漂移)光度一致性差=糊, 剔糊帧重训救不了; 596帧稀疏COLMAP位姿更紧才是stride2锐的根本→**加帧反而害位姿**。**决策: 室内实验室交付用stride2**(`gs_vggto_colmapjoint_110744_stride2_bak.ply`等)。
+
+**下一步**: ①要跑巡检把canonical指回stride2(或用已搭好的s2 scaffolding); ②建device_clusters/nav_ds(绕看式采集→A*非走廊直行要重想); ③sim相机匹配采集pitch(capcam测≈-24~-27°, 是waypoint level渲染发白雾主因)。**卡点**: 无(重建线定论=用stride2)。
+
+---
+
+### 2026-07-22 —— stride2交付管线全跑通: canonical切换 + 锐利走查视频 + 仿真闭环冒烟
+
+**做了什么**:
+- **canonical 110744切到stride2**: full-1020差版归档`outputs/_exp_full1020/`, `gs_vggto_colmapjoint_110744{,_world}.ply`/`sim_world`/`.norm.npy`/`_colmap_joint_110744`软链到stride2备份。
+- **建`110744s2`完整交付session**(避开canonical的vggto帧目录冲突: 该目录已被全帧1020版覆盖+f实验软链复用其recon.ply): `build_colmap_session.py 110744s2`(从stride2 sparse/0的510帧重建frames_zed) → `build_nav_ds.py 110744s2`(N=510)。搭s2 scaffolding时踩坑=CaptureFPV遍历sparse/2,1,0优先选到stride2的sparse/1(76帧小模型), 建`_colmap_joint_110744s2/sparse/0`只含sparse/0软链强制用510帧主模型; stride2丢的norm.npy按训练归一化逻辑(相机中心均值+均距)重算, 与备份npz的center/s_norm完全一致。
+- **锐利capcam走查视频**`render_best_walkthrough.py`(PLY=s2 pre-align ply, MODEL=s2 sparse/0真外参, NFRAMES300 SS2.0)→`outputs/walk_lab_110744_stride2.mp4`。
+- **仿真闭环冒烟**`test_env.py --skin_session colmapjoint_110744s2`(需PYTHONPATH=third_party/discoverse): 占据自由70%, A* start(0,0)→goal(0.35,-4.65), pursuit 28步reached零碰撞。
+
+**产出**: `outputs/walk_lab_110744_stride2.mp4`(300帧走查, 工作台/货架/设备/窗全清晰) / `nav_ds_110744s2/` / `vggto_colmapjoint_110744s2/`(510帧) / `recon_verify/{walk_lab_sample,testenv_fpv_sample,lab_110744_scene_topdown}.png` / canonical 110744软链→stride2 + `_exp_full1020/`归档。
+
+**结论**: **stride2重建可导航FPV锐利=交付达成**(走查视频=工作台/货架/黄设备全清晰, 仿真闭环通零碰撞, 在轨level相机FPV没严重白雾)。场景性质=中轴窄带(x跨1.4m/y跨5m/转身累计1436°≈4圈)边走边转身看两侧。
+
+**下一步**: VLM巡检demo(需定target设备+巡逻式沿y轴中轴设站转向侧面; build_clusters_stations假设x单调要泛化y轴; 目标候选=黄色测试设备/工作台很显著)。**卡点**: 无。
+
+---
+
+### 2026-07-16(晚) 补: 111450锐皮肤(1.2M)+demo修复
+- 看门狗等到GPU4空自动锐训(默认致密化→**1.2M高斯**,world ply 304MB)+align+重跑demo。
+- **两坑已修**: ①重跑align坐标漂移(x峰27.54→29.15)→重建device_clusters对齐新坐标; ②1.2M占据太密(occ_thr12挤偏导航漏检)→occ_thr提到40(按密度3.4倍缩放)→导航恢复。run_inspection加`--occ_ply`(占据/皮肤解耦备用)。
+- **结果**: `goalnav/runs/inspection_111450_sharp.mp4` 往返检视4处190s正常。
+- **锐度结论**: 358K vs 1.2M公平对比(同前视on-path帧)差别很小, 顶/侧喷溅拉丝两版都在=off-axis采集天花板(单程前视), 加高斯救不了(印证0626)。VLM判定用真图不受影响。
+- **教训**: 重跑align后必重建依赖坐标的clusters; 换皮肤密度必同比调occ_thr。
+
+
+
+## 07-29（周二）ConceptGraphs 全链收尾 + RAM fallback 补丁 + RAG 冒烟
+
+**07-29 深夜续（全链稀疏图救援实测 = 衰减实验终版）**
+- s5 显微镜：CLIP top1=2.57m → VLM 精排连否 2 个错节点 → node35=**1.18m**（救援成功；真·最近节点不在 CLIP top5=合并粒度随机性）。
+- s5 铁柜：修正地标后关系规则 → **0.69m**（2.97→0.69 级联修复）。s10：VLM 假阴性频发（真显微镜判 no）=节点太糙救不回，**建图密度是硬下限**。
+- **最终部署结论（全链）：s2 级全目标≤0.9m 可靠；s5 级（102帧≈3分钟巡逻）≤1.2m 可用+VLM 到场兜底；s10 不可行。**
+
+
+
+**07-29 深夜（视觉伺服收敛 + 巡逻密度衰减实验）**
+- 对准攻坚收敛：根因=VLM bbox 在 off-path 糊渲染上不稳；解法=**站位改用场景图节点的最佳观测采集位姿**（节点最高 conf 检测帧→traj 取位姿，on-trajectory 渲染锐）→ servo 可靠收敛。confirm 改 bbox 存在性（检测>判断）。最终 `lab_mission_110744_rag.mp4`：铁柜 6 轮收敛 cx=0.51 / 显微镜 -2.9° / 白桌 -1.0°，三站实时帧 bbox 全 CONFIRMED。
+- 真机部署路径研究 `docs/真机部署路径_场景图RAG_0729.md`：VLM 的病是仿真代餐特有；真机坐标系更干净（巡逻/任务同 SLAM 会话）；唯一真风险=SLAM 位姿漂移。
+- **巡逻密度衰减实验**（模拟真机，stride2/5/10 各建图，`scripts/cg_decay_eval.py`）：节点 185→46→9；**几何覆盖三密度全≤0.34m（鲁棒），语义特异性先死**（s5/s10 图"microscope"标签 0 票消失）；检索误差非单调。**部署结论：稀疏巡逻够找区域、不够语义检索；s2 级（~250帧）可靠，s5 临界；真机=兴趣区采密+VLM 到场确认**。
+- 环境坑记：user-site transformers 被升级污染 cg env（RAM 需 ≤4.44.2）；GPU0/1 被灌满 OOM 换 2/3；mapping 需目录内 PYTHONPATH=.。
+
+
+
+**07-29 傍晚（⭐闭环跑通）**
+- 场景图 RAG 接入 lab_mission（架构不变，仅 WHERE 坐标源替换，`--targets` 参数化，视频版本化）。
+- 三站坐标全 GT-free：microscope=node148(CLIP top1,0.50m) / iron_cabinet=node130(VLM-yes+显微镜邻域,0.55m,tag被RAM漂移成microwave) / pipette_table=node20(白色像素占比top1,0.60m)。
+- **`outputs/lab_mission_110744_rag.mp4`**（335帧，8.69m）：4腿全通，三站慢脑 VLM confirm 全 YES，抽帧目检三站 FPV 对准目标。
+- ⚠ 环境修复：~/.local 的 torch/torchvision/scipy/matplotlib/hf_hub 曾被清，已装回（torch2.5.1+cu121 等，运行姿势见 memory）。
+- 断点：真机 SLAM 位姿建图验证；"黄桌前白桌"关系消歧未硬编码（本次白属性探针）。
+
+
+
+**07-29 下午续（三层检索验证完）**
+- 更深诊断：过合并在建图增量阶段（post-merge 阈值 0.7→0.9 零变化，192→192）；几何覆盖完备（三目标 GT 全有 pcd_min≤0.22m 节点）；**真瓶颈=开集打标词表漂移**（铁柜位 RAM 叫 microwave/oven，白桌位叫 tool/computer，被桌上物带偏），纯文本查询救不了。
+- 三层检索 `scripts/cg_rag_vlm_rerank.py`：①CLIP 粗排 top10（text+clip 特征+RAM 标签加成）②**VLM 存储视角精排**（候选 crop 画红框问自研 VLM yes/no，30 候选判否 12，有区分度）③**空间关系消歧**（铁柜=距显微镜地标最近候选 → 2.11m→**0.69m**）。
+- 最终成绩：microscope **0.50m**✅ / iron_cabinet **0.69m**✅（显微镜当地标）/ pipette_table 🟡~1.5m（"黄桌"地标不可靠，覆盖节点 0.63m 存在，留到场 VLM 确认）。
+- 产物：`cg_rag_vlm_rerank_0729.json`、`cg_rag_smoke_v2_185_0729.json`、灰底高亮版可视化（用户认可）。
+- 下一步：接 lab_mission 状态机（前两站 RAG 直跑，白桌站导航到候选区+VLM 环视确认）。
+
+
+
+**做了什么**
+- 定位"昨晚断了"真相：0728晚全链实际已跑完（255帧检测→mapping 959obj合并185→caption→LLM打标），烂尾在最后一步——自研VLM做GPT-4式JSON整理，185个object仅~27个有效tag（75缺object_tag字段/75回invalid/8解析失败），剪枝后场景图只剩10节点且LLM幻觉标签（refrigerator/coffee machine）。
+- 修复：`build_scenegraph_cfslam.py` 加 [PATCH ram_fallback]——LLM tag无效时回退该物体多视角RAM打标多数票（纯确定性，不再依赖VLM文本能力）。旧10节点图备份 `_10obj_bak`，重跑出 **185节点全保留**（microscope×4/cabinet×1/table×13）。边构建阶段（~184次VLM关系查询）对检索无用，kill跳过。
+- RAG冒烟 `scripts/cg_rag_query.py`（CLIP ViT-H-14 text_ft+clip_ft均值，真值=lab_mission_targets_zed.json，同PREUNTWIST坐标系）。
+
+**结论（照实）**
+- microscope top-1 命中，距真值 **0.50m**（xy仅0.31m）→ 区分度物体可用场景图替代手搓几何定位。
+- iron_cabinet top-1 偏2.11m，但microscope第2名 node124("equipment") 距铁柜真值仅0.44m——铁柜被检出但RAM打标叫equipment；铁柜与显微镜物理同簇（相距0.6m）。
+- white table 失败（3.31m）= 类别歧义（13张桌子CLIP无区分度），需空间关系消歧或到场VLM确认，是P1课题非bug。
+- 产物：`outputs/cg_lab110744s2/cg_rag_smoke_0729.json`；场景图 `sg_cache/map/scene_map_cfslam_pruned.pkl.gz`（185节点）。
+
+**下一步（P1）**
+- 歧义目标消歧（空间关系查询扩展/两阶段tag过滤+CLIP/到场VLM确认）。
+- 接 lab_mission 状态机：RAG节点坐标替换 locate_target 手搓几何 WHERE。
+- 可选：caption/edges 换本地 Qwen3.5-4B 提质（自研VLM纯文本JSON能力废，已实测）。
+
+
+## 2026-07-16 —— 室外场景选型纠偏(105731弃→111450) + 111450铁网巡检demo全链跑通 + 锐皮肤看门狗
+
+**做了什么**:
+- **接断点"105731跑geo_vlm+换目标电柜"→诊断否决**: 画对齐轨迹俯视(`_viz_scene.py`)+密集contact sheet(`_contact_105731.py`)铁证105731 ①全程有黑衣操作员在镜头前挥手(重建污染+演不了发现设备) ②无明显配电箱(主体是高架桥下停车场+车+黄线) ③对齐轨迹紧凑(6.5m/12.9m/yaw累计)。**结论: 105731演不了换目标电柜**。
+- **⭐用户两处纠正**: ①室外巡检目标不是配电箱, 是**电线杆右侧的铁丝网**; ②先探111450(同场景另一份)+剔掉有人帧。
+- **✅改用111450全链重建**: contact sheet证人只在开头f0-95, 之后~1140帧干净(高架桥柱+停车场+黄线马路+右侧铁丝网)。`_recon_single_cam_seq.py`加`RECON_START/END`裁污染帧→窗口[96,1235)stride2取570张→COLMAP **566/570注册(主模型sparse/2)**→build_colmap_session。
+- **⚠3DGS遇GPU竞争OOM**(高斯涨到1.3M撑爆26GB空闲)→重训加`GROW_GRAD2D=0.00035 REFINE_STOP_RATIO=0.35 expandable_segments`封顶358138高斯(loss0.09)→align(566wp **span28.4×9.1m=大线性场景**,非105731紧凑)。
+- **✅参数化+建输入**: `run_inspection.py`加`--nav_ds/--clusters`(默认仍走廊,向后兼容); `build_nav_ds.py`(泛化)建`nav_ds_111450`; `build_clusters_stations.py`(室外点云无干净周期立柱=检测不可靠→沿路等距站位)建4站位side=-1(铁网在行进右侧)。
+- **✅关键验证**: env+A*冒烟通(occ free99%,A*93点0→27.5); 采集相机大量侧看→RealFrameLookup对面向query返回**真正面向铁网真帧**(站位17=电线杆+配电箱+铁网+车); VLM(10.0.0.18 robo2vlm现0.6s)对铁网答Yes。
+- **✅跑geo_vlm**: 往返检视4处step~490 DONE 118s, 面板`VLM@:分类:是目标`+记忆完成记录, 换prompt(泵→铁网)即换目标=机制室外复现。
+- **皮肤偏糊(358K)**→用户选"等GPU空训最锐~1M"→写看门狗`_watch_train_sharp_111450.sh`(nohup后台轮询, 空卡≥42GB自动锐化训练+align+重跑demo→`inspection_111450_sharp.mp4`+写`_sharp_111450.done`)。备份358K皮肤防覆盖。挂每小时cron自动验证。
+
+**产出**: `goalnav/runs/inspection_colmapjoint_111450.mp4`(铁网巡检demo,358K皮肤版) / `outputs/gs_vggto_colmapjoint_111450{,_world}.ply`+`_358k`备份 / `nav_ds_111450` `device_clusters_111450.npy` / 新脚本见上。
+
+**结论**: 室外铁网巡检demo跑通=**"换指令→检视不同设备"机制在室外新大场景(28m)复现**; 111450侧看采集正合侧向巡检。**下一步**: 等GPU空出锐皮肤(看门狗自动)。**卡点**: 机器load410 8卡全占, 锐训要等卡。
+
+---
+
+
+## 2026-07-14(晚) —— 服务器修复后续接: gate训满+发现门不可复现加正则修复 / 191715 crab验证 / gate接进巡检闭环
+
+**做了什么**:
+- **191715 crab 3DGS 收尾**: 发现3DGS其实早跑完(step19999出`gs_vggto_colmapjoint_demo191715.ply` 426万高斯SH3,记忆"杀在19000"过时)。补跑`align_gs_world.py`(330 waypoints,span3.5×1.2m横向范围)+改`render_best_walkthrough.py`让MODEL可env覆盖→渲`walk_191715_crab.mp4`(240帧)。目检横扫全程锐利=**crab采集重建干净, 印证"crab失败"真因是单相机bug不是crab不行**。
+- **⭐gate训练重跑发现真bug**: 重跑满240ep时同初始同数据却收敛到**不同门值**(一次理想分离/一次两门齐塌),两者loss几乎一样→**门被trajectory_loss欠约束(有goal驱动场景冗余),收敛靠`np.random.permutation`种子运气**,上次"漂亮门值"有运气成分对论文机制卖点不可接受。**修复=固定种子+加门正则`--gate_reg=0.3`(两层decoder监督:平移→门开/纯转向→门关)**。重跑ep005即到`前向0.986转向0.028`稳定,终门`前向1.000转向0.000`,loss0.88。
+- **verify_turn(加env CKPT/OUT)验证**: `verify_turn_gate.png`证**±90°原地转3帧×左右两向全干净**(末点塌原点,yaw±88~89°),含之前turn-only"左转全废"的走廊帧889。⚠±45°是OOD不可靠(训练|dyaw|∈[54,90])。
+- **⭐gate接进`run_inspection.py`闭环(几何--no_vlm)**: 载模型改`goalnav_gate.pt`+`dd_traj`改`status_gh`(目标点+朝向)+**混合TURN**(大角度gate-DD原地转+小角度控制器收尾)。踩两坑并修:①`traj_to_control`对纯旋转轨迹选点错→wz≈0卡死→`turn_wz`用DD末端yaw取角速度;②转角>90°是OOD符号翻转走长路→喂DD前夹`clip(e,±π/2)`。**结果4/4设备全检视step379到DONE,面板确认src=DD(原地转正)+纯旋转,转正后FPV见左墙蓝泵**。
+
+**产出**: `goalnav/runs/goalnav_gate.pt`(正则版终门1.0/0.0)+`_train_gate_reg.log` / `outputs/gs_vggto_colmapjoint_demo191715_world.ply`+`walk_191715_crab.mp4` / `outputs/verify_turn_gate.png` / `goalnav/runs/inspection_gate_hybridturn_0714.mp4`。改动: `train_goalnav_gate.py`(seed+gate_reg) `verify_turn.py`(env CKPT/OUT) `render_best_walkthrough.py`(env MODEL) `run_inspection.py`(gate+status_gh+混合TURN+turn_wz+夹紧)。
+
+**结论**: 办法C命令门控**机制成立且可复现**(正则锁定,非种子运气)=论文可控性卖点站得住;巡检全链CRUISE-DD→TURN-DD→SCAN→TURN_BACK×4闭环通,DD快脑统一驱动走+转。crab采集突破单相机bug天花板。
+
+**下一步**(可选): ①VLM模式`--vlm_realimg`跑(需VLM服务10.0.0.18)验VLM发现蓝泵→DD转向全链;②191715 off-path定量对比证突破拖影天花板;③gate接进sim_fullchain全链真闭环。**卡点**: 无(几何闭环已通)。
+
+---
+
+## 2026-07-07(下) —— 拷入当前实时工作区 + 运控/采集对比总结 + VLM↔DiffusionDrive接缝文档
+
+**做了什么**:
+- **拷入** 机器人当前实时ROS2工作区到 `robot_control_current/`(rsync,403M)。三代理并行精读运控/采集/文档。
+- **对比总结** `docs/当前机器人运控与采集_对比总结_0707.md`:①运控动作接口`/svtrobot_cmd`(vx,vy,wz)+`svtrobo_controller.py::publish_action`与DiffusionDrive输出**完美对齐**;②**⚠️`get_observation()`只有16维本体感(舵角/舵速/力矩/轮速),无相机/BEV/位姿**→感知obs要自建;③采集格式与`run_preprocess.py`~95%吻合(images/zed jpg+pointcloud npz mm+cmd jsonl+2Hz)但**缺.svo/positional tracking/odom/tf/曝光锁/task_modes**→轨迹GT只能cmd积分;④当前workspace**无run_diffusiondrive_policy.py**(只在orig)需移植;⑤新增双臂OpenArm+灵巧手LinkerO6+关节示教轨迹(与导航正交,README_trajectory是臂关节非导航)。
+- **VLM接缝** 在 `docs/DiffusionDrive路径规划实现_0707.md` 新增§六:代码实证注入点(status[:4]→_status_encoding→keyval→ego_query→扩散头cross_ego_attn;ModeHead可视觉推mode;⭐ModulationLayer.global_cond空FiLM挂钩=注入解码器入口)+三接法(A零重训4-mode/B扩status/C走global_cond注入解码器⭐目标)+推荐(Phase1=A验证/Phase2=C重训)+VLM输出契约(结构化JSON)。
+- **整理** `robot_control_current/.gitignore`(补egg-info/node_modules/*.so/*.log/*.svo/*.db3/办公锁/venv,验证无垃圾入库)。
+
+**结论**:上车接线明确=`感知obs自建(ZED图→camera_feature/点云→lidar_feature/VLM mode→status) → DiffusionDrive → 轨迹→样条跟踪→publish_action`;VLM进decoder走`global_cond`(方案C,已有挂钩)。
+
+**下一步**:(待定)按§五 Step1把真模型插闭环`step`(复用ckpt±32m先打通);或采集端补.svo/odom/曝光/task_modes。**卡点**:无位姿里程计影响BEV裁窗+轨迹反馈;VLM方案C需重训。
+
+---
+
+## 2026-07-07 —— BEV机制查证(真实NAVSIM数据) + 两份规范文档成文
+
+**做了什么**:
+- **BEV机制查证+真实数据**:读官方`transfuser_features.py`坐实**NAVSIM喂模型的BEV=LiDAR点云俯视直方图,非图像**(图像是另一路,backbone里才融合)。本机huggingface直连死→走`hf-mirror.com`镜像+`curl|tar --occurrence=1`**流式抽1帧真实pcd仅1.5MB**(不下200×3.3GB整包)。真实NAVSIM(98k点360°环视)与我们真实ZED深度(77万点但**只有前向锥**x∈[0.4,20])**过同一官方`points_to_bev_tensor`**并排出图。
+- **文档一** `docs/数据采集规范_0707.md`:对齐上车`run_preprocess.py`的①目录/文件格式(硬约束)②传感器/topic(要录全,别只cmd)③采集协议(⭐别只朝前单程走/锁曝光防白雾/慢稳)④task_modes标注⑤训练超参约束⑥checklist。
+- **文档二** `docs/DiffusionDrive路径规划实现_0707.md`:对齐`run_diffusiondrive_policy.py`。DiffusionDrive=条件轨迹生成器(20锚点截断扩散→未来4s/8路点(x,y,yaw)多模态选最高分),轨迹→样条跟踪(带反馈)/分段差分→[vx,vy,wz]+2Hz receding horizon+深度急停安全层。落地四步:复用ckpt打通→BEV洗干净→VLM慢脑接mode→重训。
+
+**产出**:`_navsim_bev_demo.{py,png}`(机制演示)、`_real_bev_compare.{py,png}`(真实NAVSIM vs 真实ZED)、`_navsim_real/*.pcd`(真实样例留存)、两份docs。memory `real-navsim-vs-zed-bev-0706`。
+
+**结论**:BEV域差=**视场覆盖**(环视稠密 vs 前向锥),非分辨率;复用学长ckpt须保±32m,室内±6m须重训。这是可视化铁证。
+
+**下一步**:(待用户定)把±6m ZED BEV与重建占据栅格(OccBEV)叠图看能否补前向锥后方全黑;或按四步落地Step1把真模型插进闭环仿真`step`。
+
+**卡点**:huggingface直连墙(用hf-mirror);真实NAVSIM metadata整包6.6GB未下(只看效果不需要)。
+
 ---
 
 ## 2026-07-02(下) —— ⭐整个架构端到端跑通(非反应式两阶段, 官方范式)

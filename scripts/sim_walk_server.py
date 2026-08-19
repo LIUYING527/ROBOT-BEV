@@ -22,13 +22,29 @@ import cv2
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "third_party", "discoverse"))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__))))
-from sim_walk_common import make_env
+from sim_walk_common import make_env, _CAM_M
+from scipy.spatial.transform import Rotation as _Rot
 
 ENV = None
 START = None
 LOCK = threading.Lock()
 SPEED = 1.2     # m/s
 TURN = 1.2      # rad/s
+ROLL_OFF = 0.0  # ⭐实时可调全局找平 roll(度): [ / ] 调, 绕相机光轴
+
+
+def set_roll(deg):
+    """把 fpv 相机绕光轴滚 deg 度(改mj_model.cam_quat, 每帧渲染自动带上)→整幅画面转正。"""
+    global ROLL_OFF
+    ROLL_OFF = deg
+    t = np.radians(deg); c, s = np.cos(t), np.sin(t)
+    Rz = np.array([[c, -s, 0.0], [s, c, 0.0], [0.0, 0.0, 1.0]])   # 绕local z(光轴)
+    M = _CAM_M @ Rz
+    q = _Rot.from_matrix(M).as_quat()[[3, 0, 1, 2]]               # wxyz
+    with LOCK:
+        ENV.mj_model.cam_quat[ENV.cam_fpv] = q
+        if hasattr(ENV, "gs_renderer"):
+            ENV.gs_renderer.need_rerender = True
 
 HTML = """<!doctype html><html><head><meta charset=utf-8>
 <title>VGGT→3DGS→DISCOVERSE walk</title>
@@ -38,8 +54,8 @@ img{max-width:98vw;max-height:86vh;margin-top:6px;background:#000}
 <body>
 <div id=hud>真实 DISCOVERSE 仿真器(双层:几何物理 + 3DGS皮肤) ·
 <kbd>W</kbd>/<kbd>S</kbd> 前后 · <kbd>A</kbd>/<kbd>D</kbd> 转向 · <kbd>Shift</kbd> 加速 · <kbd>R</kbd> 回起点 ·
-<kbd>T</kbd> 切换图层 · <button id=tg onclick="tog()">切换图层</button> ·
-<span id=st>v=0 w=0</span> · <b><span id=ly>图层:3DGS皮肤</span></b></div>
+<kbd>T</kbd> 切换图层 · <kbd>[</kbd>/<kbd>]</kbd> 找平roll(±0.5) · <kbd>\</kbd> 归零 ·
+<span id=st>v=0 w=0</span> · <b><span id=ly>图层:3DGS皮肤</span></b> · <b><span id=rl style="color:#ff0">roll=0.0°</span></b></div>
 <img id=v src="/stream">
 <script>
 let keys={};
@@ -53,9 +69,14 @@ function send(){
 }
 function tog(){fetch('/toggle').then(r=>r.text()).then(t=>{
  document.getElementById('ly').textContent='图层:'+(t==='1'?'3DGS皮肤':'几何物理');});}
+function roll(d){fetch('/roll?d='+d).then(r=>r.text()).then(t=>{
+ document.getElementById('rl').textContent='roll='+t+'°';});}
 addEventListener('keydown',e=>{let k=e.key.toLowerCase();
  if(k==='r'){fetch('/cmd?reset=1');return;}
  if(k==='t'){tog();return;}
+ if(k==='['){roll(-0.5);return;}
+ if(k===']'){roll(0.5);return;}
+ if(k==='\\'){roll(0);return;}
  if(!keys[k]){keys[k]=1;send();}});
 addEventListener('keyup',e=>{keys[e.key.toLowerCase()]=0;send();});
 addEventListener('blur',()=>{keys={};send();});
@@ -81,6 +102,13 @@ class H(BaseHTTPRequestHandler):
                     ENV.gs_renderer.need_rerender = True
                 cur = "1" if ENV.show_gaussian_img else "0"
             body = cur.encode()
+            self.send_response(200); self.send_header("Content-Type", "text/plain")
+            self.send_header("Content-Length", str(len(body))); self.end_headers()
+            self.wfile.write(body)
+        elif u.path == "/roll":
+            q = parse_qs(u.query); d = float(q.get("d", ["0"])[0])
+            set_roll(0.0 if d == 0 else ROLL_OFF + d)
+            body = f"{ROLL_OFF:.1f}".encode()
             self.send_response(200); self.send_header("Content-Type", "text/plain")
             self.send_header("Content-Length", str(len(body))); self.end_headers()
             self.wfile.write(body)
@@ -129,11 +157,21 @@ def main():
     ap.add_argument("--height", type=int, default=540)
     ap.add_argument("--skin_only", action="store_true",
                     help="跳过几何物理层(无墙/盒/碰撞),纯 3DGS 皮肤自由驾驶")
+    ap.add_argument("--fovy", type=float, default=None,
+                    help="竖直视场角(度); None=自动从该session的COLMAP相机读真实fovy(与demo一致, 忠实透视)")
     args = ap.parse_args()
 
     global ENV, START
+    # ⭐fovy 自动读真实采集相机内参(和 demo/test_env 一致), 否则 75° 会额外显歪
+    fovy = args.fovy
+    if fovy is None:
+        try:
+            from test_env import _colmap_fovy
+            fovy = _colmap_fovy(args.session, default=75.0)
+        except Exception as e:
+            print(f"[server] 读fovy失败({e}), 用75", flush=True); fovy = 75.0
     ENV, W = make_env(args.session, width=args.width, height=args.height, fps=30,
-                      skin_only=args.skin_only)
+                      skin_only=args.skin_only, fovy=fovy)
     wp, yaw = W["waypoints_xy"], W["yaw"]
     # 开局朝行进方向(录制的 yaw[0] 往往背对走廊→全黑):取第一个离起点≥1m 的前方路点定朝向
     fwd = wp[0]

@@ -1,0 +1,27 @@
+{
+  "sample_01_corridor.jpg": {
+    "task": "直行巡航",
+    "target": null,
+    "reason": "普通走廊,前方无明显巡检目标,继续巡航"
+  },
+  "sample_02_cabinet.jpg": {
+    "task": "靠近设备巡检",
+    "target": "配电柜",
+    "reason": "前方有带红色指示灯的配电柜,应靠近查看(往哪边、怎么走由快脑据观测决定)"
+  },
+  "sample_03_valves.jpg": {
+    "task": "靠近设备巡检",
+    "target": "阀门/管道",
+    "reason": "画面里有阀门和管道设备,应靠近巡检"
+  },
+  "sample_04_exit.jpg": {
+    "task": "到达出口",
+    "target": "安全出口指示灯",
+    "reason": "前方是发光的安全出口指示灯,驶向出口"
+  },
+  "sample_05_black.jpg": {
+    "task": "暂停",
+    "target": null,
+    "reason": "画面全黑/无信号,无法巡检,原地等待"
+  }
+}

@@ -172,15 +172,16 @@ def build_mjcf(session, start_xy, start_yaw=0.0, cam_height=1.2, width=1280, hei
 
 
 def make_env(session="114830", width=1280, height=720, fps=24, cam_height=1.2, fovy=75.0,
-             simple_robot=False, skin_only=False):
-    """构建并返回 (env, world_npz)。需先设好 MUJOCO_GL/PYTHONPATH。"""
+             simple_robot=False, skin_only=False, skin_ply=None):
+    """构建并返回 (env, world_npz)。需先设好 MUJOCO_GL/PYTHONPATH。
+    skin_ply: 覆盖默认皮肤ply(如 ArtiFixer3D 对齐后的锐利皮肤); None=默认 gs_vggto_<s>_world.ply。"""
     from discoverse.envs import SimulatorBase
     from discoverse.utils.base_config import BaseConfig
 
     W = np.load(os.path.join(ROOT, "outputs", f"sim_world_{session}.npz"))
     start_xy = W["waypoints_xy"][0]
     start_yaw = float(W["yaw"][0]) if "yaw" in W else 0.0
-    ply = os.path.join(ROOT, "outputs", f"gs_vggto_{session}_world.ply")
+    ply = os.path.abspath(skin_ply) if skin_ply else os.path.join(ROOT, "outputs", f"gs_vggto_{session}_world.ply")
     mjcf = build_mjcf(session, start_xy, start_yaw, cam_height, width, height, fovy,
                       simple_robot, skin_only)
 
@@ -206,6 +207,7 @@ def make_env(session="114830", width=1280, height=720, fps=24, cam_height=1.2, f
             self.a_vx = self.mj_model.actuator("act_vx").id
             self.a_vy = self.mj_model.actuator("act_vy").id
             self.a_vyaw = self.mj_model.actuator("act_vyaw").id
+            self.cam_fpv = self.mj_model.camera("fpv").id
 
         def updateControl(self, action):
             # 写 ctrl(velocity actuator),不写 qvel:接触力才顶得住(撞墙被挡住)
@@ -224,6 +226,19 @@ def make_env(session="114830", width=1280, height=720, fps=24, cam_height=1.2, f
             self.mj_data.ctrl[:] = 0
             self.cmd[:] = 0
             mujoco.mj_forward(self.mj_model, self.mj_data)
+
+        def roll_camera(self, theta_deg):
+            # ⭐相机侧找平: 绕 fpv 相机【光轴】(local z)滚 theta_deg→画面转正。
+            #   theta=真实采集相机在该处的 roll(=让 capcam 水平的基准); 单程室外远端场景整体滚~+6.7°,
+            #   普通 level 相机看着斜, 让相机同角滚→画面正。绕光轴纯 roll, 不动 pitch/位置。
+            #   须在 set_pose(mj_forward) 之后、render() 之前(render 不再 mj_forward)。
+            if abs(theta_deg) < 1e-3:
+                return
+            cid = self.cam_fpv
+            Rw = self.mj_data.cam_xmat[cid].reshape(3, 3)     # 列=相机x,y,z轴在世界
+            t = np.radians(theta_deg); c, s = np.cos(t), np.sin(t)
+            Rz = np.array([[c, -s, 0.0], [s, c, 0.0], [0.0, 0.0, 1.0]])  # 绕local z(光轴)
+            self.mj_data.cam_xmat[cid] = (Rw @ Rz).reshape(9)
 
         def get_pose(self):
             return (float(self.mj_data.qpos[self.jx]), float(self.mj_data.qpos[self.jy]),

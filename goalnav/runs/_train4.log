@@ -1,0 +1,10 @@
+[data] 1186 样本; featurize ...
+  0/1186
+  200/1186
+  400/1186
+  600/1186
+  800/1186
+  1000/1186
+[model] pristine DiffusionDrive + 机器人聚类锚点 (不用cond/goal_mlp) ...
+[train] 1186样本 batch=24 300ep (目标点走status/command槽, 无cond) ...
+  ep000 loss=7.3083

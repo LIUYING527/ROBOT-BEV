@@ -1,0 +1,72 @@
+[data] 1314 样本; featurize ...
+  0/1314
+  200/1314
+  400/1314
+  600/1314
+  800/1314
+  1000/1314
+  1200/1314
+[model] pristine DiffusionDrive + 机器人聚类锚点 (不用cond/goal_mlp) ...
+[train] 1314样本 batch=24 300ep (目标点走status/command槽, 无cond) ...
+  ep000 loss=7.8319
+  ep005 loss=2.5719
+  ep010 loss=1.9455
+  ep015 loss=1.8289
+  ep020 loss=1.6836
+  ep025 loss=1.5817
+  ep030 loss=1.4741
+  ep035 loss=1.4111
+  ep040 loss=1.3781
+  ep045 loss=1.3392
+  ep050 loss=1.2814
+  ep055 loss=1.2600
+  ep060 loss=1.2403
+  ep065 loss=1.1734
+  ep070 loss=1.1788
+  ep075 loss=1.1466
+  ep080 loss=1.0871
+  ep085 loss=1.1214
+  ep090 loss=1.0683
+  ep095 loss=1.1002
+  ep100 loss=1.0599
+  ep105 loss=1.0646
+  ep110 loss=1.0131
+  ep115 loss=1.0572
+  ep120 loss=1.0109
+  ep125 loss=0.9927
+  ep130 loss=0.9578
+  ep135 loss=0.9839
+  ep140 loss=0.9278
+  ep145 loss=0.9402
+  ep150 loss=0.9321
+  ep155 loss=0.9345
+  ep160 loss=0.9444
+  ep165 loss=0.9435
+  ep170 loss=0.9125
+  ep175 loss=0.8982
+  ep180 loss=0.9079
+  ep185 loss=0.9245
+  ep190 loss=0.8674
+  ep195 loss=0.8327
+  ep200 loss=0.8710
+  ep205 loss=0.8445
+  ep210 loss=0.8039
+  ep215 loss=0.8379
+  ep220 loss=0.8387
+  ep225 loss=0.8146
+  ep230 loss=0.8272
+  ep235 loss=0.8201
+  ep240 loss=0.7858
+  ep245 loss=0.7932
+  ep250 loss=0.7632
+  ep255 loss=0.7781
+  ep260 loss=0.7573
+  ep265 loss=0.7883
+  ep270 loss=0.8225
+  ep275 loss=0.7694
+  ep280 loss=0.7296
+  ep285 loss=0.7788
+  ep290 loss=0.7443
+  ep295 loss=0.7591
+  ep299 loss=0.7280
+[done] -> /data/DongBaorong/BEVLOOK/robot_bev_sim/goalnav/runs/goalnav_ft.pt

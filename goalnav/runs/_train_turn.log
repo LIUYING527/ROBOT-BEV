@@ -1,0 +1,62 @@
+[data] 1186 平移样本 featurize(+镜像) + 合成260原地转样本 ...
+  featurize 0/1186
+  featurize 300/1186
+  featurize 600/1186
+  featurize 900/1186
+[data] 共2632样本 (平移2372 + 原地转260)
+[train] 2632样本 batch=24 240ep (status加目标朝向 + 原地转样本) ...
+  ep000 loss=5.6079
+  ep005 loss=3.0738
+  ep010 loss=2.6598
+  ep015 loss=2.4814
+  ep020 loss=2.4280
+  ep025 loss=2.3178
+  ep030 loss=2.2866
+  ep035 loss=2.2516
+  ep040 loss=2.2090
+  [ckpt] ep40 -> goalnav_turn.pt
+  ep045 loss=2.1534
+  ep050 loss=2.1099
+  ep055 loss=2.0821
+  ep060 loss=2.0313
+  ep065 loss=1.9979
+  ep070 loss=1.9688
+  ep075 loss=1.9887
+  ep080 loss=1.9400
+  [ckpt] ep80 -> goalnav_turn.pt
+  ep085 loss=1.8928
+  ep090 loss=1.8839
+  ep095 loss=1.8599
+  ep100 loss=1.8461
+  ep105 loss=1.8490
+  ep110 loss=1.8172
+  ep115 loss=1.7783
+  ep120 loss=1.7681
+  [ckpt] ep120 -> goalnav_turn.pt
+  ep125 loss=1.7810
+  ep130 loss=1.7565
+  ep135 loss=1.7282
+  ep140 loss=1.7059
+  ep145 loss=1.6973
+  ep150 loss=1.7245
+  ep155 loss=1.7021
+  ep160 loss=1.6744
+  [ckpt] ep160 -> goalnav_turn.pt
+  ep165 loss=1.6684
+  ep170 loss=1.6051
+  ep175 loss=1.6247
+  ep180 loss=1.6214
+  ep185 loss=1.5762
+  ep190 loss=1.5891
+  ep195 loss=1.5765
+  ep200 loss=1.5708
+  [ckpt] ep200 -> goalnav_turn.pt
+  ep205 loss=1.5948
+  ep210 loss=1.5396
+  ep215 loss=1.5639
+  ep220 loss=1.5330
+  ep225 loss=1.5032
+  ep230 loss=1.4997
+  ep235 loss=1.4953
+  ep239 loss=1.4935
+[done] -> /data/DongBaorong/BEVLOOK/robot_bev_sim/goalnav/runs/goalnav_turn.pt

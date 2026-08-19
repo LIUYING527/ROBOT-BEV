@@ -12,6 +12,17 @@ third_party/
 outputs/*
 !outputs/.gitkeep
 
+# ===== arch_e2e: 代码/文档入库, 大体量权重/模型/产物不入库 =====
+# (gitignore 不支持行内注释, 注释须单独成行)
+# 复制来的 ckpt/backbone (可从 robot_orig_code 再复制)
+arch_e2e/weights/
+# VLM 权重 8.8G (用 download_vlm.sh 重下)
+arch_e2e/vlm/
+# obs/视频/指标/日志等产物
+arch_e2e/runs/
+# VLM 分片权重
+*.safetensors
+
 # 大体量二进制（即便散落在别处也不入库）
 *.ply
 *.glb
@@ -39,3 +50,6 @@ venv/
 *.swp
 .idea/
 .vscode/
+
+# 备份残留
+*.bak

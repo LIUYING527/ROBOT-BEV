@@ -1,0 +1,27 @@
+[data] 1186 平移样本 featurize(+镜像) + 合成2000原地转(重平衡~1:1) ...
+  featurize 0/1186
+  featurize 300/1186
+  featurize 600/1186
+  featurize 900/1186
+[data] 共4372 (平移2372 + 原地转2000) = 1.2:1
+/data/DongBaorong/BEVLOOK/robot_bev_sim/goalnav/pipeline/train_goalnav_gate.py:91: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+  ck = torch.load(wp)
+[warm] 载 goalnav_ft.pt (cruise+strafe) + 新增门=全开
+[gate] 初始: 前向命令门=0.982 转向命令门=0.982 (期望训练后转向门显著下降)
+[train] 4372样本 batch=24 240ep (命令门控+重平衡) ...
+  ep000 loss=3.0460  门[前向0.943 转向0.955]
+  ep005 loss=1.6380  门[前向0.818 转向0.768]
+  ep010 loss=1.5306  门[前向0.815 转向0.536]
+  ep015 loss=1.4816  门[前向0.869 转向0.245]
+  ep020 loss=1.4257  门[前向0.958 转向0.103]
+  ep025 loss=1.3637  门[前向0.974 转向0.076]
+  ep030 loss=1.3447  门[前向0.980 转向0.071]
+  ep035 loss=1.2878  门[前向0.973 转向0.068]
+  ep040 loss=1.2415  门[前向0.925 转向0.063]
+  ep045 loss=1.2171  门[前向0.927 转向0.058]
+  ep050 loss=1.2008  门[前向0.934 转向0.057]
+  ep055 loss=1.1820  门[前向0.943 转向0.054]
+  ep060 loss=1.1732  门[前向0.946 转向0.052]
+  ep065 loss=1.1571  门[前向0.954 转向0.052]
+  ep070 loss=1.1403  门[前向0.956 转向0.048]
+  ep075 loss=1.1216  门[前向0.962 转向0.046]

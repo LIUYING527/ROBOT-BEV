@@ -1,0 +1,28 @@
+# Defaults for robot → DiffusionDrive preprocessing (edit or override via CLI).
+target_hz: 2.0
+time_horizon_s: 4.0
+interval_length_s: 0.5
+# Resulting future waypoints K = time_horizon_s / interval_length_s
+time_offset_ns: 0
+max_delta_image_ms: 150.0
+max_delta_lidar_ms: 500.0
+require_lidar: true
+# Bootstrap task_mode labels from cmd kinematics; override with <recording>/task_modes.jsonl
+mode_heuristic: true
+# When true, only labeled anchors (task_modes.jsonl) become training samples.
+require_mode_labels: false
+# Match Transfuser image resize (DiffusionDrive NAVSIM path uses 1024 x 256)
+camera_width: 1024
+camera_height: 256
+# LiDAR BEV (same as TransfuserConfig defaults)
+lidar_min_x: -32.0
+lidar_max_x: 32.0
+lidar_min_y: -32.0
+lidar_max_y: 32.0
+pixels_per_meter: 4.0
+hist_max_per_pixel: 5
+max_height_lidar: 100.0
+lidar_split_height: 0.2
+use_ground_plane: false
+# If point coordinates look like millimeters, divide by this to get meters
+assume_mm_if_z_abs_gt: 50.0

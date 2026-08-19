@@ -1,0 +1,32 @@
+/home/DongBaorong/.local/lib/python3.10/site-packages/torch/utils/cpp_extension.py:1964: UserWarning: TORCH_CUDA_ARCH_LIST is not set, all archs for visible cards are included for compilation. 
+If this is not desired, please set os.environ['TORCH_CUDA_ARCH_LIST'].
+  warnings.warn(
+mjcf found: /data/DongBaorong/BEVLOOK/robot_bev_sim/outputs/_sim_walk_colmapjoint_demo191715.xml
+screeninfo error: No enumerators available, using default screen size: 1920x1080
+[demo] 场景 colmapjoint_demo191715  start=(np.float64(0.0), np.float64(0.0), np.float64(1.37))
+/data/DongBaorong/BEVLOOK/robot_bev_sim/goalnav/pipeline/run_manip_nav.py:124: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+  ck = torch.load(os.path.join(RUNS, ck_name))
+[demo] 加载 goalnav_gate.pt
+  step  0 [SEEK] leg=0(去A: 取物) seek=LEFT pose=(0.00,0.00,+79) 到位0
+Multiple -pix_fmt options specified for stream 0, only the last option '-pix_fmt yuv420p' will be used.
+  step 10 [SEEK] leg=0(去A: 取物) seek=LEFT pose=(0.00,0.00,+134) 到位0
+  step 20 [SEEK] leg=0(去A: 取物) seek=LEFT pose=(0.00,0.00,+198) 到位0
+  step 30 [SEEK] leg=0(去A: 取物) seek=STOP pose=(0.00,0.00,+233) 到位0
+  step 40 [WAIT] leg=0(去A: 取物) seek=STOP pose=(0.00,0.00,+233) 到位0
+  step 50 [WAIT] leg=0(去A: 取物) seek=STOP pose=(0.00,0.00,+233) 到位0
+  step 60 [WAIT] leg=0(去A: 取物) seek=STOP pose=(0.00,0.00,+233) 到位0
+  step 70 [SEEK] leg=1(去B: 放置) seek=ARRIVED pose=(0.00,0.00,+252) 到位1
+  step 80 [SEEK] leg=1(去B: 放置) seek=LEFT pose=(0.00,0.00,+295) 到位0
+  step 90 [SEEK] leg=1(去B: 放置) seek=LEFT pose=(0.00,0.00,+359) 到位0
+  step100 [SEEK] leg=1(去B: 放置) seek=LEFT pose=(0.00,0.00,+424) 到位0
+  step110 [WAIT] leg=1(去B: 放置) seek=STOP pose=(0.00,0.00,+446) 到位0
+  step120 [WAIT] leg=1(去B: 放置) seek=STOP pose=(0.00,0.00,+446) 到位0
+  step130 [WAIT] leg=1(去B: 放置) seek=STOP pose=(0.00,0.00,+446) 到位0
+  step140 [WAIT] leg=2(去B: 放置) seek=SEARCH pose=(0.00,0.00,+446) 到位0
+  step150 [SEEK] leg=2(返回A) seek=LEFT pose=(0.00,0.00,+495) 到位0
+  step160 [SEEK] leg=2(返回A) seek=LEFT pose=(0.00,0.00,+559) 到位0
+  step169 [DONE] leg=3(返回A) seek=STOP pose=(0.00,0.00,+581) 到位0
+[demo] 完成! step169  完成腿: ['去A: 取物', '去B: 放置', '返回A']
+[done] 60s  完成腿3/3
+  /data/DongBaorong/BEVLOOK/robot_bev_sim/goalnav/runs/manip_nav_colmapjoint_demo191715_20260715_115802.mp4
+  /data/DongBaorong/BEVLOOK/robot_bev_sim/goalnav/runs/manip_nav_colmapjoint_demo191715.mp4

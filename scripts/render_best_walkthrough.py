@@ -7,7 +7,7 @@ from gsplat import rasterization
 DEV = "cuda"
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PLY = os.environ.get("PLY", os.path.join(ROOT, "outputs/gs_vggto_colmapjoint_all_hqbest.ply"))
-MODEL = os.path.join(ROOT, "outputs/_colmap_joint_all/sparse/0")
+MODEL = os.environ.get("MODEL", os.path.join(ROOT, "outputs/_colmap_joint_all/sparse/0"))
 NFRAMES = int(os.environ.get("NFRAMES", "240"))
 SS = float(os.environ.get("SS", "2.0"))          # 超采样倍率
 OUT = os.environ.get("OUT", os.path.join(ROOT, "outputs/walk_hqbest.mp4"))

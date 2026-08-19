@@ -1,0 +1,61 @@
+[data] 1186 平移样本 featurize(+镜像) + 合成2000原地转(重平衡~1:1) ...
+  featurize 0/1186
+  featurize 300/1186
+  featurize 600/1186
+  featurize 900/1186
+[data] 共4372 (平移2372 + 原地转2000) = 1.2:1
+/data/DongBaorong/BEVLOOK/robot_bev_sim/goalnav/pipeline/train_goalnav_gate.py:99: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+  ck = torch.load(wp)
+[warm] 载 goalnav_ft.pt (cruise+strafe) + 新增门=全开
+[gate] 初始: 前向命令门=0.982 转向命令门=0.982 (期望训练后转向门显著下降)
+[train] 4372样本 batch=24 240ep (命令门控+重平衡) ...
+  ep000 loss=3.7730  门[前向0.725 转向0.774]
+  ep005 loss=1.6098  门[前向0.986 转向0.028]
+  ep010 loss=1.4429  门[前向0.998 转向0.018]
+  ep015 loss=1.3643  门[前向0.999 转向0.011]
+  ep020 loss=1.3137  门[前向0.999 转向0.008]
+  ep025 loss=1.2969  门[前向0.999 转向0.007]
+  ep030 loss=1.2666  门[前向0.999 转向0.005]
+  ep035 loss=1.2328  门[前向1.000 转向0.003]
+  ep040 loss=1.2231  门[前向1.000 转向0.002]
+  ep045 loss=1.1925  门[前向1.000 转向0.002]
+  ep050 loss=1.1763  门[前向1.000 转向0.001]
+  ep055 loss=1.1614  门[前向1.000 转向0.001]
+  ep060 loss=1.1420  门[前向1.000 转向0.000]
+  ep065 loss=1.1269  门[前向1.000 转向0.000]
+  ep070 loss=1.1293  门[前向1.000 转向0.000]
+  ep075 loss=1.1121  门[前向1.000 转向0.000]
+  ep080 loss=1.1064  门[前向1.000 转向0.000]
+  ep085 loss=1.0828  门[前向1.000 转向0.000]
+  ep090 loss=1.0767  门[前向1.000 转向0.000]
+  ep095 loss=1.0743  门[前向1.000 转向0.000]
+  ep100 loss=1.0572  门[前向1.000 转向0.000]
+  ep105 loss=1.0551  门[前向1.000 转向0.000]
+  ep110 loss=1.0508  门[前向1.000 转向0.000]
+  ep115 loss=1.0300  门[前向1.000 转向0.000]
+  ep120 loss=1.0148  门[前向1.000 转向0.000]
+  ep125 loss=1.0181  门[前向1.000 转向0.000]
+  ep130 loss=0.9936  门[前向1.000 转向0.000]
+  ep135 loss=0.9919  门[前向1.000 转向0.000]
+  ep140 loss=0.9833  门[前向1.000 转向0.000]
+  ep145 loss=0.9751  门[前向1.000 转向0.000]
+  ep150 loss=0.9688  门[前向1.000 转向0.000]
+  ep155 loss=0.9669  门[前向1.000 转向0.000]
+  ep160 loss=0.9618  门[前向1.000 转向0.000]
+  ep165 loss=0.9542  门[前向1.000 转向0.000]
+  ep170 loss=0.9573  门[前向1.000 转向0.000]
+  ep175 loss=0.9470  门[前向1.000 转向0.000]
+  ep180 loss=0.9461  门[前向1.000 转向0.000]
+  ep185 loss=0.9249  门[前向1.000 转向0.000]
+  ep190 loss=0.9206  门[前向1.000 转向0.000]
+  ep195 loss=0.9210  门[前向1.000 转向0.000]
+  ep200 loss=0.9209  门[前向1.000 转向0.000]
+  ep205 loss=0.9080  门[前向1.000 转向0.000]
+  ep210 loss=0.9075  门[前向1.000 转向0.000]
+  ep215 loss=0.8975  门[前向1.000 转向0.000]
+  ep220 loss=0.9001  门[前向1.000 转向0.000]
+  ep225 loss=0.8862  门[前向1.000 转向0.000]
+  ep230 loss=0.8870  门[前向1.000 转向0.000]
+  ep235 loss=0.9048  门[前向1.000 转向0.000]
+  ep239 loss=0.8756  门[前向1.000 转向0.000]
+[done] -> goalnav_gate.pt  终门[前向1.000 转向0.000]

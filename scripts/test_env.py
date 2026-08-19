@@ -14,7 +14,37 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "scripts"))
 
 
-def build_occupancy(merged_ply, res, robot_r, traj=None):
+def _colmap_fovy(session, default=75.0):
+    """从该session的COLMAP相机内参算真实竖直视场角(度)。sim相机fovy须匹配采集相机,
+    否则3DGS按错误投影渲染=偏离训练视角→糊+透视扭曲(看着像'歪')。读不到退default。"""
+    import math
+    # colmap目录名用session去掉"colmapjoint_"前缀(如 colmapjoint_111450 → _colmap_joint_111450)
+    short = session[len("colmapjoint_"):] if session.startswith("colmapjoint_") else session
+    bases = [os.path.join(ROOT, "outputs", f"_colmap_joint_{short}"),
+             os.path.join(ROOT, "outputs", f"_colmap_joint_{session}")]
+    for base in bases:
+      for sub in ("sparse/2", "sparse/1", "sparse/0"):
+        d = os.path.join(base, sub)
+        if not os.path.isdir(d):
+            continue
+        try:
+            import pycolmap
+            rec = pycolmap.Reconstruction(d)
+            if not rec.cameras:
+                continue
+            cam = max(rec.cameras.values(), key=lambda c: c.width * c.height)
+            p = list(cam.params)
+            fy = p[1] if cam.model.name in ("PINHOLE", "OPENCV") and len(p) >= 2 else p[0]
+            fovy = math.degrees(2 * math.atan(cam.height / (2 * fy)))
+            print(f"[env] COLMAP相机真实 fovy={fovy:.1f}° (session={session}, {sub})", flush=True)
+            return float(fovy)
+        except Exception as e:
+            print(f"[env] 读COLMAP相机fovy失败({sub}): {e}", flush=True)
+    print(f"[env] 未读到COLMAP相机, fovy用默认{default}°", flush=True)
+    return float(default)
+
+
+def build_occupancy(merged_ply, res, robot_r, traj=None, thr=2, close_k=9):
     import trimesh, cv2                                  # 用trimesh读(无GL,避开与MuJoCo EGL冲突)
     P = np.asarray(trimesh.load(merged_ply, process=False).vertices)
     mid = P[(P[:, 2] > 0.3) & (P[:, 2] < 2.0)]
@@ -26,12 +56,13 @@ def build_occupancy(merged_ply, res, robot_r, traj=None):
     ix = np.clip(((mid[:, 0] - lo[0]) / res).astype(int), 0, W - 1)
     iy = np.clip(((mid[:, 1] - lo[1]) / res).astype(int), 0, H - 1)
     cnt = np.zeros((H, W), np.int32); np.add.at(cnt, (iy, ix), 1)
-    occ[cnt >= 3] = 1                                   # >=3点的格=占据
-    # 形态学清理:闭运算填实墙体空洞 + 去掉小噪点连通块(高斯软重建占据本身碎)
-    occ = cv2.morphologyEx(occ, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
+    occ[cnt >= thr] = 1                                 # >=thr点=占据(A3D稠密要调高)
+    occ = cv2.morphologyEx(occ, cv2.MORPH_CLOSE, np.ones((close_k, close_k), np.uint8))
+    from scipy import ndimage
+    occ = ndimage.binary_fill_holes(occ).astype(np.uint8)   # 填墙体内部的洞
     n, lbl, stats, _ = cv2.connectedComponentsWithStats(occ, connectivity=8)
     for i in range(1, n):
-        if stats[i, cv2.CC_STAT_AREA] < 20:            # <20格(0.05m²)的孤立噪块清掉
+        if stats[i, cv2.CC_STAT_AREA] < 40:            # 去孤立小噪块
             occ[lbl == i] = 0
     occ = cv2.dilate(occ, np.ones((int(robot_r / res) * 2 + 1,) * 2, np.uint8))  # 膨胀机器人半径
     return occ, lo, res
@@ -39,17 +70,29 @@ def build_occupancy(merged_ply, res, robot_r, traj=None):
 
 class CorridorTestEnv:
     def __init__(self, skin_session="colmapjoint_all", merged=None,
-                 res=0.05, robot_r=0.3, W=640, H=400):
+                 res=0.05, robot_r=0.3, W=640, H=400, skin_ply=None,
+                 occ_ply=None, occ_thr=2, occ_close_k=9, fovy=None, level_cam=True):
         # 占据源默认=皮肤同帧的世界ply(保证BEV几何与FPV同坐标系);可显式覆盖
+        # ⭐occ_ply: 用它建占据(统一几何=占据与FPV同源, 如A3D皮肤); occ_thr稠密点云调高
         if merged is None:
             merged = f"outputs/gs_vggto_{skin_session}_world.ply"
+        occ_src = occ_ply if occ_ply is not None else os.path.join(ROOT, merged)
         from sim_walk_common import make_env
-        self.env, self.Wd = make_env(skin_session, width=W, height=H, skin_only=True)
+        # ⭐fovy=None → 自动从该session的COLMAP相机内参读真实视场角(sim相机须匹配采集相机, 否则3DGS投影偏离训练视角=糊+扭曲显歪); 读不到退75
+        if fovy is None:
+            fovy = _colmap_fovy(skin_session, default=75.0)
+        self.env, self.Wd = make_env(skin_session, width=W, height=H, skin_only=True, skin_ply=skin_ply, fovy=fovy)
+        # ⭐相机侧找平: 载入 make_roll_profile 生成的残留地面倾斜 profile(随x), 渲染时把相机随本地地面
+        #   倾斜同向旋→治 untwist 在稀疏远端欠修正残留的"歪"(地平线正), 曲线平滑故不抖, 不动几何/不重建。
+        self._roll_prof = None
+        self._roll_sign = float(os.environ.get("ROLL_SIGN", "1.0"))  # 符号标定用(渲一帧看正负)
+        if level_cam:
+            self._load_roll_profile(skin_session)
         wp_all = self.Wd["waypoints_xy"]                 # 可能是多段拼接(交界处瞬移)
         wp = self._longest_run(wp_all)                   # 取最长连续段当参考轨迹(start/goal/朝向)
         wp = self._forward_only(wp)                      # 若是"去了又回",只取去程(到最远点),避免末端打转
         self.ref = wp                                    # 参考轨迹(供pure-pursuit demo;真测试用模型不需要)
-        self.occ, self.lo, self.res = build_occupancy(os.path.join(ROOT, merged), res, robot_r, traj=wp_all)
+        self.occ, self.lo, self.res = build_occupancy(occ_src, res, robot_r, traj=wp_all, thr=occ_thr, close_k=occ_close_k)
         self._clear_path(wp_all, robot_r + 0.45)         # 占据/清路用全部点(两段覆盖更全)
         kf = min(6, len(wp) - 1)                         # 朝前方第6个路点定开局朝向(避首点梯度噪声)
         self.start = (float(wp[0, 0]), float(wp[0, 1]),
@@ -57,6 +100,32 @@ class CorridorTestEnv:
         self.goal = (float(wp[-1, 0]), float(wp[-1, 1]))
         self.win_m = 8.0                                # BEV局部窗 8m
         self.reset()
+
+    def _load_roll_profile(self, session):
+        import glob
+        p = os.path.join(ROOT, "outputs", f"roll_profile_{session}.npz")
+        if not os.path.exists(p):
+            # 兼容 session 别名(去 colmapjoint_ 前缀等)
+            cand = glob.glob(os.path.join(ROOT, "outputs", "roll_profile_*.npz"))
+            p = next((c for c in cand if session.split("_")[-1] in c), None)
+        if p and os.path.exists(p):
+            from scipy.spatial import cKDTree
+            d = np.load(p)
+            self._roll_xy = d["cam_xy"]; self._roll_deg = d["roll_deg"]
+            self._roll_tree = cKDTree(self._roll_xy)
+            self._roll_prof = p
+            print(f"[env] 相机侧找平 profile={os.path.basename(p)} "
+                  f"({len(self._roll_deg)}帧, 按xy最近邻查真实相机roll, max {np.abs(self._roll_deg).max():.1f}°)", flush=True)
+        else:
+            print(f"[env] 无 roll_profile(session={session}), 相机不找平(如需: python3 scripts/make_roll_profile.py {session})", flush=True)
+
+    def _cam_roll(self, x, y, k=9):
+        # 按机器人(x,y)查最近k个采集帧 roll 的中位(=capcam该处相机roll)→普通相机绕光轴补此角=画面转正。
+        # 中位(而非单最近)抗手持残余抖; 与capcam按序列插值一致地跟随场景真实倾斜趋势。
+        if self._roll_prof is None:
+            return 0.0
+        _, idx = self._roll_tree.query([x, y], k=k)
+        return float(np.median(self._roll_deg[np.atleast_1d(idx)]))
 
     @staticmethod
     def _longest_run(wp, jump=2.0):
@@ -95,21 +164,26 @@ class CorridorTestEnv:
         self.t = 0; self.collided = False; self.reached = False
         return self._obs()
 
-    def step(self, v, w, dt=0.25):
-        nx = self.x + v * np.cos(self.yaw) * dt
-        ny = self.y + v * np.sin(self.yaw) * dt
+    def step(self, vx, vy=0.0, wz=0.0, dt=0.25):
+        # ⭐全向底座(svtrobot 四轮 vx,vy,wz): 支持横移 vy, 不只差速
+        c, s = np.cos(self.yaw), np.sin(self.yaw)
+        nx = self.x + (vx * c - vy * s) * dt
+        ny = self.y + (vx * s + vy * c) * dt
         if self._occupied(nx, ny):
             self.collided = True                        # 撞了:不前进
         else:
             self.x, self.y = nx, ny
-        self.yaw += w * dt; self.t += 1
+        self.yaw += wz * dt; self.t += 1
         if np.hypot(self.x - self.goal[0], self.y - self.goal[1]) < 1.2:
             self.reached = True
         term = self.collided or self.reached
         return self._obs(), term, {"collided": self.collided, "reached": self.reached, "t": self.t}
 
     def _obs(self):
-        self.env.set_pose(self.x, self.y, self.yaw); self.env.render()
+        self.env.set_pose(self.x, self.y, self.yaw)
+        if self._roll_prof is not None:                 # ⭐相机侧找平(set_pose后/render前)
+            self.env.roll_camera(self._roll_sign * self._cam_roll(self.x, self.y))
+        self.env.render()
         fpv = self.env.frame().copy()                   # (H,W,3) 3DGS前视
         bev = self._bev_window()                        # 局部占据窗(机器人朝上)
         return {"fpv": fpv, "bev": bev, "pose": (self.x, self.y, self.yaw)}
@@ -175,7 +249,7 @@ def main():
     obs = env.reset()
     for k in range(args.steps):
         v, w = pursuit_policy(env) if args.policy == "pursuit" else scripted_policy(obs["bev"])
-        obs, term, info = env.step(v, w)
+        obs, term, info = env.step(v, 0.0, w)             # 差速策略: vy=0
         # 可视化: 左FPV | 右BEV局部窗
         fpv = np.ascontiguousarray(obs["fpv"][:, :, ::-1])
         bev = cv2.resize(((1 - obs["bev"]) * 255).astype(np.uint8), (400, 400), interpolation=cv2.INTER_NEAREST)

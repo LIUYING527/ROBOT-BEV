@@ -1,0 +1,109 @@
+/home/DongBaorong/.local/lib/python3.10/site-packages/torch/utils/cpp_extension.py:1964: UserWarning: TORCH_CUDA_ARCH_LIST is not set, all archs for visible cards are included for compilation. 
+If this is not desired, please set os.environ['TORCH_CUDA_ARCH_LIST'].
+  warnings.warn(
+mjcf found: /data/DongBaorong/BEVLOOK/robot_bev_sim/outputs/_sim_walk_colmapjoint_all.xml
+screeninfo error: No enumerators available, using default screen size: 1920x1080
+[巡检] A*路径96点; 设备簇4个: [(np.float32(8.2), np.float32(-1.2)), (np.float32(18.0), np.float32(-2.2)), (np.float32(25.8), np.float32(-2.9)), (np.float32(30.8), np.float32(-3.5))]
+/data/DongBaorong/BEVLOOK/robot_bev_sim/goalnav/pipeline/run_inspection.py:175: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+  ck = torch.load(os.path.join(RUNS, ck_name))
+[巡检] 加载 goalnav_gate.pt (cruise+横扫+命令门控原地转)
+  step  0 [CRUISE] pose=(5.8,-0.9,-0.14) 已检视=0 子任务发起=0
+Multiple -pix_fmt options specified for stream 0, only the last option '-pix_fmt yuv420p' will be used.
+  step 10 [CRUISE] pose=(6.7,-1.1,-0.14) 已检视=0 子任务发起=0
+  step 20 [CRUISE] pose=(7.7,-1.2,-0.13) 已检视=0 子任务发起=0
+  step 30 [TURN_TO_FACE] pose=(8.7,-1.3,-0.10) 已检视=0 子任务发起=1
+  step 40 [TURN_TO_FACE] pose=(9.0,-1.3,+1.39) 已检视=0 子任务发起=1
+  step 50 [SCAN] pose=(9.5,-1.3,+1.57) 已检视=0 子任务发起=1
+  step 60 [SCAN] pose=(10.2,-1.4,+1.55) 已检视=0 子任务发起=1
+  step 70 [SCAN] pose=(11.0,-1.4,+1.55) 已检视=0 子任务发起=1
+  step 80 [SCAN] pose=(11.7,-1.4,+1.55) 已检视=0 子任务发起=1
+  step 90 [TURN_BACK] pose=(12.5,-1.4,+1.55) 已检视=1 子任务发起=1
+  step100 [CRUISE] pose=(12.7,-1.4,+0.11) 已检视=1 子任务发起=1
+  step110 [TURN_TO_FACE] pose=(13.4,-1.6,-0.15) 已检视=1 子任务发起=2
+  step120 [TURN_TO_FACE] pose=(13.6,-1.6,+1.35) 已检视=1 子任务发起=2
+  step130 [SCAN] pose=(14.1,-1.7,+1.54) 已检视=1 子任务发起=2
+  step140 [SCAN] pose=(14.8,-2.0,+1.52) 已检视=1 子任务发起=2
+  step150 [SCAN] pose=(15.5,-2.1,+1.53) 已检视=1 子任务发起=2
+  step160 [SCAN] pose=(16.3,-2.1,+1.53) 已检视=1 子任务发起=2
+  step170 [SCAN] pose=(17.1,-2.1,+1.53) 已检视=1 子任务发起=2
+  step180 [TURN_BACK] pose=(17.3,-2.1,+0.22) 已检视=2 子任务发起=2
+  step190 [TURN_TO_FACE] pose=(17.9,-2.3,-0.18) 已检视=2 子任务发起=3
+  step200 [SCAN] pose=(18.1,-2.3,+1.30) 已检视=2 子任务发起=3
+  step210 [SCAN] pose=(18.7,-2.4,+1.45) 已检视=2 子任务发起=3
+  step220 [SCAN] pose=(19.4,-2.5,+1.44) 已检视=2 子任务发起=3
+  step230 [SCAN] pose=(20.1,-2.7,+1.44) 已检视=2 子任务发起=3
+  step240 [SCAN] pose=(20.9,-2.9,+1.44) 已检视=2 子任务发起=3
+  step250 [TURN_BACK] pose=(21.6,-3.0,+1.44) 已检视=3 子任务发起=3
+  step260 [CRUISE] pose=(21.8,-3.0,-0.01) 已检视=3 子任务发起=3
+  step270 [TURN_TO_FACE] pose=(22.5,-3.1,-0.04) 已检视=3 子任务发起=4
+  step280 [SCAN] pose=(22.8,-3.0,+1.42) 已检视=3 子任务发起=4
+  step290 [SCAN] pose=(23.4,-3.0,+1.56) 已检视=3 子任务发起=4
+  step300 [SCAN] pose=(24.1,-3.1,+1.55) 已检视=3 子任务发起=4
+  step310 [SCAN] pose=(24.9,-3.1,+1.55) 已检视=3 子任务发起=4
+  step320 [SCAN] pose=(25.6,-3.1,+1.55) 已检视=3 子任务发起=4
+  step330 [TURN_BACK] pose=(26.3,-3.2,+1.55) 已检视=4 子任务发起=4
+  step340 [TURN_BACK] pose=(26.5,-3.2,+0.08) 已检视=4 子任务发起=4
+  step350 [TURN_TO_FACE] pose=(27.1,-3.3,-0.18) 已检视=4 子任务发起=5
+  step360 [SCAN] pose=(27.4,-3.3,+1.33) 已检视=4 子任务发起=5
+  step370 [SCAN] pose=(28.0,-3.3,+1.47) 已检视=4 子任务发起=5
+  step380 [SCAN] pose=(28.7,-3.4,+1.46) 已检视=4 子任务发起=5
+  step390 [SCAN] pose=(29.5,-3.5,+1.46) 已检视=4 子任务发起=5
+  step400 [SCAN] pose=(30.2,-3.7,+1.46) 已检视=4 子任务发起=5
+  step410 [TURN_BACK] pose=(31.0,-3.8,+1.38) 已检视=5 子任务发起=5
+  step420 [TURN_TO_FACE] pose=(31.1,-3.9,-0.15) 已检视=5 子任务发起=6
+  step430 [TURN_TO_FACE] pose=(31.2,-3.9,+1.27) 已检视=5 子任务发起=6
+  step440 [SCAN] pose=(31.7,-3.9,+1.57) 已检视=5 子任务发起=6
+  step450 [SCAN] pose=(32.4,-3.9,+1.55) 已检视=5 子任务发起=6
+  step460 [SCAN] pose=(33.2,-4.0,+1.55) 已检视=5 子任务发起=6
+  step470 [SCAN] pose=(33.9,-4.1,+1.55) 已检视=5 子任务发起=6
+  step480 [SCAN] pose=(34.7,-4.1,+1.55) 已检视=5 子任务发起=6
+  step490 [TURN_BACK] pose=(34.9,-4.1,+0.26) 已检视=6 子任务发起=6
+  step500 [TURN_AROUND] pose=(34.9,-4.1,-1.46) 已检视=6 子任务发起=6
+  step510 [CRUISE] pose=(34.9,-4.1,-3.14) 已检视=6 子任务发起=6
+  step520 [CRUISE] pose=(34.0,-3.9,-3.23) 已检视=6 子任务发起=6
+  step530 [CRUISE] pose=(33.0,-3.8,-3.21) 已检视=6 子任务发起=6
+  step540 [TURN_TO_FACE] pose=(32.0,-3.7,-3.22) 已检视=6 子任务发起=7
+  step550 [SCAN] pose=(31.8,-3.6,-4.66) 已检视=6 子任务发起=7
+  step560 [SCAN] pose=(31.1,-3.6,-4.74) 已检视=6 子任务发起=7
+  step570 [SCAN] pose=(30.1,-3.5,-4.73) 已检视=6 子任务发起=7
+  step580 [SCAN] pose=(29.1,-3.3,-4.73) 已检视=6 子任务发起=7
+  step590 [TURN_BACK] pose=(28.1,-3.1,-4.65) 已检视=7 子任务发起=7
+  step600 [TURN_TO_FACE] pose=(28.0,-3.2,-3.15) 已检视=7 子任务发起=8
+  step610 [TURN_TO_FACE] pose=(27.8,-3.2,-4.54) 已检视=7 子任务发起=8
+  step620 [SCAN] pose=(27.2,-3.1,-4.83) 已检视=7 子任务发起=8
+  step630 [SCAN] pose=(26.3,-3.0,-4.80) 已检视=7 子任务发起=8
+  step640 [SCAN] pose=(25.3,-3.0,-4.80) 已检视=7 子任务发起=8
+  step650 [SCAN] pose=(24.4,-2.9,-4.80) 已检视=7 子任务发起=8
+  step660 [TURN_BACK] pose=(24.1,-2.9,-3.50) 已检视=8 子任务发起=8
+  step670 [TURN_TO_FACE] pose=(23.5,-2.9,-3.25) 已检视=8 子任务发起=9
+  step680 [SCAN] pose=(23.3,-2.8,-4.68) 已检视=8 子任务发起=9
+  step690 [SCAN] pose=(22.7,-2.8,-4.72) 已检视=8 子任务发起=9
+  step700 [SCAN] pose=(21.8,-2.7,-4.71) 已检视=8 子任务发起=9
+  step710 [SCAN] pose=(21.0,-2.6,-4.71) 已检视=8 子任务发起=9
+  step720 [SCAN] pose=(20.1,-2.4,-4.71) 已检视=8 子任务发起=9
+  step730 [TURN_BACK] pose=(19.5,-2.3,-3.80) 已检视=9 子任务发起=9
+  step740 [TURN_TO_FACE] pose=(19.0,-2.3,-3.19) 已检视=9 子任务发起=10
+  step750 [SCAN] pose=(18.7,-2.2,-4.70) 已检视=9 子任务发起=10
+  step760 [SCAN] pose=(18.1,-2.1,-4.86) 已检视=9 子任务发起=10
+  step770 [SCAN] pose=(17.1,-2.0,-4.84) 已检视=9 子任务发起=10
+  step780 [SCAN] pose=(16.1,-2.0,-4.85) 已检视=9 子任务发起=10
+  step790 [TURN_BACK] pose=(15.2,-2.0,-4.84) 已检视=10 子任务发起=10
+  step800 [CRUISE] pose=(15.0,-2.0,-3.40) 已检视=10 子任务发起=10
+  step810 [TURN_TO_FACE] pose=(14.2,-1.9,-3.22) 已检视=10 子任务发起=11
+  step820 [TURN_TO_FACE] pose=(14.0,-1.9,-4.71) 已检视=10 子任务发起=11
+  step830 [SCAN] pose=(13.3,-1.8,-4.95) 已检视=10 子任务发起=11
+  step840 [SCAN] pose=(12.5,-1.8,-4.93) 已检视=10 子任务发起=11
+  step850 [SCAN] pose=(11.6,-1.8,-4.93) 已检视=10 子任务发起=11
+  step860 [SCAN] pose=(10.7,-1.8,-4.93) 已检视=10 子任务发起=11
+  step870 [TURN_BACK] pose=(10.2,-1.8,-4.02) 已检视=11 子任务发起=11
+  step880 [TURN_TO_FACE] pose=(9.8,-1.7,-3.25) 已检视=11 子任务发起=12
+  step890 [SCAN] pose=(9.7,-1.6,-4.76) 已检视=11 子任务发起=12
+  step900 [SCAN] pose=(8.9,-1.6,-4.83) 已检视=11 子任务发起=12
+  step910 [SCAN] pose=(8.0,-1.6,-4.82) 已检视=11 子任务发起=12
+  step920 [SCAN] pose=(7.0,-1.6,-4.82) 已检视=11 子任务发起=12
+  step930 [TURN_BACK] pose=(6.0,-1.2,-4.82) 已检视=12 子任务发起=12
+  step939 [DONE] pose=(5.9,-1.2,-3.39) 已检视=12 子任务发起=12
+[巡检] 完成! step939 到终点; 共检视12处(VLM发起子任务12)
+[done] 368s  检视12处
+  /data/DongBaorong/BEVLOOK/robot_bev_sim/goalnav/runs/inspection_colmapjoint_all_20260715_150227.mp4
+  /data/DongBaorong/BEVLOOK/robot_bev_sim/goalnav/runs/inspection_colmapjoint_all.mp4

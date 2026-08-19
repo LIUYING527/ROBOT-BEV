@@ -1,0 +1,28 @@
+# DiffusionDrive / Transfuser on robot NPZ data: trajectory + diffusion only (no map / agent BEV supervision).
+_target_: navsim.agents.diffusiondrive.transfuser_agent.TransfuserAgent
+_convert_: "all"
+
+config:
+  _target_: navsim.agents.diffusiondrive.transfuser_config.TransfuserConfig
+  _convert_: "all"
+
+  trajectory_sampling:
+    _target_: nuplan.planning.simulation.trajectory.trajectory_sampling.TrajectorySampling
+    _convert_: "all"
+    time_horizon: 4
+    interval_length: 0.5
+
+  latent: false
+  use_auxiliary_supervision: false
+  mode_loss_weight: 1.0
+  mode_num_classes: 4
+  # Optional class weights for [cruise, turn, inspect, exit], e.g. [1.0, 2.5, 2.0, 2.0]
+  mode_class_weights: null
+  mode_focal_gamma: 2.0
+
+  # Must point to kmeans_navsim_traj_20.npy (20, 8, 2).
+  # Set env PLAN_ANCHOR_PATH or override this field in hydra CLI.
+  plan_anchor_path: ${oc.env:PLAN_ANCHOR_PATH,./kmeans_navsim_traj_20.npy}
+
+checkpoint_path: null
+lr: 6e-4
