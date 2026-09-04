@@ -570,6 +570,63 @@ def main():
         print(f"    [RELOC] {name}: drift={drift0:.2f}m → 纠正后 believed=({nx:.2f},{ny:.2f},{nyaw:.1f}°)", flush=True)
         return drift0, 0.0
 
+    # ---------- 贴脸精对接（几何兜底版，0812 逻辑；视觉缝检测待真图标定后补） ----------
+    FACE_OFF = 0.05
+    def _geo_face_dist(tx, ty):
+        return float(np.hypot(env.x - tx, env.y - ty)) - FACE_OFF
+
+    def _zed_face_depth():
+        """zed 深度中央竖条 ROI 的 p10 分位(米)= 到前面距离。同 lab_mission._ed_face_depth 的渲染ED→zed深度。"""
+        _, depth = zed.capture()
+        H, W = depth.shape
+        roi = depth[int(H * 0.3):int(H * 0.7), int(W * 0.42):int(W * 0.58)]
+        roi = roi[(roi > 0.02) & (roi < 3.0)]
+        return float(np.percentile(roi, 10)) if len(roi) > 50 else None
+
+    def _dock_step(fwd=0.0, lat=0.0, dyaw=0.0, n=1):
+        """精对接小步进(绕过占据检查)。fwd/lat=位移米, dyaw=弧度。发 Twist + 指令积分。"""
+        dt = 0.5
+        for _ in range(n):
+            env.step(fwd / dt, lat / dt, dyaw / dt, dt=dt)
+
+    def precise_dock(name, target_dist=0.15, trust_dist=0.35):
+        """几何兜底版贴脸对接(0812 逻辑, 视觉缝检测暂缺):
+        1) 深度伺服到可信区 trust_dist: 面距=min(zed深度p10, 几何dist-FACE_OFF)
+        2) 盲爬到 target(近场 ED 不可信)。横向靠 believed+front 轴几何兜底。"""
+        tx, ty = float(T[name][0]), float(T[name][1])
+        fd = None
+        for it in range(12):
+            fd_ed = _zed_face_depth()
+            fd_geo = _geo_face_dist(tx, ty)
+            fd_new = fd_geo if fd_ed is None else min(fd_ed, fd_geo)
+            src = "geo" if fd_ed is None else ("zed" if fd_ed <= fd_geo else "geo<zed")
+            print(f"    [DOCK] {name} 接近it{it}: 面距{fd_new*100:.1f}cm[{src}]", flush=True)
+            err = fd_new - trust_dist
+            if abs(err) < 0.01:
+                break
+            step = float(np.clip(0.65 * err, -0.05, 0.05))
+            _dock_step(fwd=step, n=max(1, int(abs(step) / 0.02)))
+            fd = fd_new
+        if fd is None:
+            fd = _geo_face_dist(tx, ty)
+        crawl = fd - target_dist
+        if crawl > 0.005:
+            print(f"    [DOCK] {name} 盲爬{crawl*100:.0f}cm → 面距{target_dist*100:.0f}cm", flush=True)
+            _dock_step(fwd=0.02, n=int(round(crawl / 0.02)))
+        ferr = abs(float(np.degrees(wrap(np.radians(FRONT[name]) - env.yaw)))) if name in FRONT else None
+        _fn = np.radians(FRONT.get(name, 0.0))
+        _nx, _ny = -np.sin(_fn), np.cos(_fn)
+        lat_end = float((env.x - tx) * _nx + (env.y - ty) * _ny)
+        print(f"    [DOCK] {name} 终: 面距~{target_dist*100:.0f}cm 几何横向{lat_end*100:.1f}cm front偏{ferr}°", flush=True)
+        return {"station": name, "face_dist_cm": round(target_dist * 100, 1),
+                "geo_lateral_cm": round(lat_end * 100, 1), "front_err_deg": ferr}
+
+    def undock(name, back_to=0.6, from_dist=0.15):
+        n = int(round((back_to - from_dist) / 0.05))
+        print(f"    [UNDOCK] {name} 盲退{n*5}cm → 面距~{back_to*100:.0f}cm", flush=True)
+        for _ in range(n):
+            _dock_step(fwd=-0.05, n=1)
+
     def vlm_confirm(name):
         """四段推理链 confirm（HTTP VLM）。真机用真图。简化: Scene + Action 两段 VLM。"""
         rgb, _ = zed.capture()
@@ -619,6 +676,9 @@ def main():
                 reloc_correct(st_name)
             align_front(st_name)
             vlm_confirm(st_name)
+            if args.precise_dock:
+                precise_dock(st_name)
+                undock(st_name)
 
     print("[real] 完成", flush=True)
 
