@@ -53,3 +53,7 @@ venv/
 
 # 备份残留
 *.bak
+
+# 真机部署打包产物(1.1GB, 不提交)
+deploy_pkg/
+deploy_pkg.tar.gz
