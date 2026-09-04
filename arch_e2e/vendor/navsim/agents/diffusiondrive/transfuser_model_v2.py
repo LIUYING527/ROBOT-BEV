@@ -141,7 +141,7 @@ class V2TransfuserModel(nn.Module):
             "pred_mode_idx": torch.argmax(mode_logits, dim=-1),
         }
 
-        trajectory = self._trajectory_head(trajectory_query,agents_query, cross_bev_feature,bev_spatial_shape,status_encoding[:, None],targets=targets,global_img=None,cond_id=features.get("cond_id", None),goal_dir=features.get("goal_dir", None))
+        trajectory = self._trajectory_head(trajectory_query,agents_query, cross_bev_feature,bev_spatial_shape,status_encoding[:, None],targets=targets,global_img=None,cond_id=features.get("cond_id", None),goal_dir=features.get("goal_dir", None),text_feature=features.get("text_feature", None))
         output.update(trajectory)
 
         agents = self._agent_head(agents_query)
@@ -479,6 +479,10 @@ class TrajectoryHead(nn.Module):
         # 零初始化保 warm-start; 训练学出"朝goal方向沿走廊走"=真导航。
         self.goal_mlp = nn.Sequential(nn.Linear(2, d_model), nn.ReLU(), nn.Linear(d_model, d_model))
         nn.init.zeros_(self.goal_mlp[-1].weight); nn.init.zeros_(self.goal_mlp[-1].bias)
+        # ⭐指令文本注入(0829 T5 e2e IL): BERT[CLS]768 -> d_model 加到 time_embed, 与 goal_mlp 同通路。
+        # 零初始化保 warm-start; 训出让"指令文本"直接调制轨迹(任务特化策略, 无需慢脑)。
+        self.text_proj = nn.Linear(768, d_model)
+        nn.init.zeros_(self.text_proj.weight); nn.init.zeros_(self.text_proj.bias)
     # ⭐机器人尺度归一化(我们改, 原为NAVSIM车尺度 x/56.9 y/46 -> 机器人3m轨迹被噪声淹).
     # x∈[-0.5,5.0]->[-1,1], y∈[-1.5,1.5]->[-1,1], head∈[-π,π]->[-1,1].
     def norm_odo(self, odo_info_fut):
@@ -493,24 +497,26 @@ class TrajectoryHead(nn.Module):
         y = y*1.5
         h = h*np.pi
         return torch.cat([x, y, h], dim=-1)
-    def _cond_offset(self, bs, cond_id, goal_dir, device):
-        """cond_embed(语义) + goal_mlp(目标方向) 的联合偏移, 加到 time_embed -> 每层FiLM。"""
+    def _cond_offset(self, bs, cond_id, goal_dir, device, text_feature=None):
+        """cond_embed(语义) + goal_mlp(目标方向) + text_proj(指令) 的联合偏移, 加到 time_embed -> 每层FiLM。"""
         off = 0.0
         if cond_id is not None:
             off = off + self.cond_embed(cond_id).view(bs, 1, -1)
         if goal_dir is not None:
             off = off + self.goal_mlp(goal_dir.float()).view(bs, 1, -1)
+        if text_feature is not None:
+            off = off + self.text_proj(text_feature.float()).view(bs, 1, -1)
         return off
 
-    def forward(self, ego_query, agents_query, bev_feature,bev_spatial_shape,status_encoding, targets=None,global_img=None, cond_id=None, goal_dir=None) -> Dict[str, torch.Tensor]:
+    def forward(self, ego_query, agents_query, bev_feature,bev_spatial_shape,status_encoding, targets=None,global_img=None, cond_id=None, goal_dir=None, text_feature=None) -> Dict[str, torch.Tensor]:
         """Torch module forward pass."""
         if self.training:
-            return self.forward_train(ego_query, agents_query, bev_feature,bev_spatial_shape,status_encoding,targets,global_img,cond_id,goal_dir)
+            return self.forward_train(ego_query, agents_query, bev_feature,bev_spatial_shape,status_encoding,targets,global_img,cond_id,goal_dir,text_feature)
         else:
-            return self.forward_test(ego_query, agents_query, bev_feature,bev_spatial_shape,status_encoding,global_img,cond_id,goal_dir)
+            return self.forward_test(ego_query, agents_query, bev_feature,bev_spatial_shape,status_encoding,global_img,cond_id,goal_dir,text_feature)
 
 
-    def forward_train(self, ego_query,agents_query,bev_feature,bev_spatial_shape,status_encoding, targets=None,global_img=None, cond_id=None, goal_dir=None) -> Dict[str, torch.Tensor]:
+    def forward_train(self, ego_query,agents_query,bev_feature,bev_spatial_shape,status_encoding, targets=None,global_img=None, cond_id=None, goal_dir=None, text_feature=None) -> Dict[str, torch.Tensor]:
         bs = ego_query.shape[0]
         device = ego_query.device
         # 1. add truncated noise to the plan anchor
@@ -538,7 +544,7 @@ class TrajectoryHead(nn.Module):
         # 3. embed the timesteps
         time_embed = self.time_mlp(timesteps)
         time_embed = time_embed.view(bs,1,-1)
-        time_embed = time_embed + self._cond_offset(bs, cond_id, goal_dir, device)  # ⭐语义cond+goal方向注入每层FiLM
+        time_embed = time_embed + self._cond_offset(bs, cond_id, goal_dir, device, text_feature)  # ⭐语义cond+goal+指令注入每层FiLM
 
 
         # 4. begin the stacked decoder
@@ -556,7 +562,7 @@ class TrajectoryHead(nn.Module):
         best_reg = torch.gather(poses_reg_list[-1], 1, mode_idx).squeeze(1)
         return {"trajectory": best_reg,"trajectory_loss":ret_traj_loss,"trajectory_loss_dict":trajectory_loss_dict}
 
-    def forward_test(self, ego_query,agents_query,bev_feature,bev_spatial_shape,status_encoding,global_img, cond_id=None, goal_dir=None) -> Dict[str, torch.Tensor]:
+    def forward_test(self, ego_query,agents_query,bev_feature,bev_spatial_shape,status_encoding,global_img, cond_id=None, goal_dir=None, text_feature=None) -> Dict[str, torch.Tensor]:
         step_num = 2
         bs = ego_query.shape[0]
         device = ego_query.device
@@ -595,7 +601,7 @@ class TrajectoryHead(nn.Module):
             timesteps = timesteps.expand(img.shape[0])
             time_embed = self.time_mlp(timesteps)
             time_embed = time_embed.view(bs,1,-1)
-            time_embed = time_embed + self._cond_offset(bs, cond_id, goal_dir, device)  # ⭐语义cond+goal注入(推理)
+            time_embed = time_embed + self._cond_offset(bs, cond_id, goal_dir, device, text_feature)  # ⭐语义cond+goal+指令注入(推理)
 
             # 4. begin the stacked decoder
             poses_reg_list, poses_cls_list = self.diff_decoder(traj_feature, noisy_traj_points, bev_feature, bev_spatial_shape, agents_query, ego_query, time_embed, status_encoding,global_img)

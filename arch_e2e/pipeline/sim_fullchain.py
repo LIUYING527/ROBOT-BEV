@@ -33,7 +33,7 @@ from train_conditional import robot_anchors                   # 机器人尺度�
 from gen_conditional_data import project_ground, ego_to_world # FPV 地面投影
 
 RUNS = os.path.join(ROOT, "arch_e2e", "runs")
-API_URL = os.environ.get("VLM_URL", "http://10.0.0.18:8152/api/generate")   # 本地Qwen3.5服务时设 VLM_URL=http://127.0.0.1:8152/api/generate
+API_URL = os.environ.get("VLM_URL", "http://127.0.0.1:8152/api/generate")   # 0829定: 默认本地Qwen3.5-4B(robo2vlm弃用); 需要自研时设 VLM_URL=http://10.0.0.18:8152/api/generate
 
 # 4 语义条件(与训练一致); cond_id = index
 CONDITIONS = ["cruise", "inspect_left", "inspect_right", "strafe_left", "strafe_right",
@@ -81,7 +81,7 @@ def vlm_api(frames_bgr, prompt, max_new_tokens=32, timeout=120):
         ok, buf = cv2.imencode(".jpg", fb)
         files.append(("images", (f"f{j}.jpg", buf.tobytes(), "image/jpeg")))
     data = {"prompt": prompt, "max_new_tokens": str(max_new_tokens), "do_sample": "false"}
-    r = requests.post(API_URL, files=files, data=data, timeout=timeout)
+    r = requests.post(os.environ.get("VLM_URL", API_URL), files=files, data=data, timeout=timeout)  # 0828: 调用时读env, 支持运行时切后端(Qwen/robo2vlm)
     r.raise_for_status()
     j = r.json()
     return j.get("answer", ""), j.get("meta", {})

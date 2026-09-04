@@ -4,6 +4,105 @@
 > 格式固定：**做了什么 / 产出 / 结论 / 下一步 / 卡点**。
 > 全过程叙事见 [`RECONSTRUCTION_JOURNEY.md`]，本文件只记“每次”的增量。
 
+## 2026-09-01(午) —— 真机部署v2三层渐进式落盘 + dense重训自动接续开跑
+
+- **做了什么**：①BEV precompute 全收(8118/8118)后 chain_train.sh 自动启训 dense 重训(GPU4, 333103样本/61场景, 12ep)；②用户定部署新方向"新场景不人工采集直接跑"→查证 DualVLN/NaVILA/VLFM/ViNT 部署形态后定**三层渐进式**：M0无图VLN即跑→M1自主首探+自动建图→热切换M2完整模式；③盘点重建流水线全部现成脚本后落盘自动化三件套。
+- **产出**：`docs/真机部署方案v2_渐进式部署_0901.md`(总方案)；`scripts/auto_map_pipeline.sh`(COLMAP→3DGS→align→占据→nav_ds无人值守, 断点续跑+VERDICT+注册率门, 语法/门禁已测)；`scripts/frontier_explore.py`(在线占据+cv2 frontier+打分骨架, 冒烟过)。
+- **结论**：**DOCK对接是目标相对的(zed深度+局部几何+正脸)全程不查全局图→无图也能cm级贴脸**；cm级绝对精度必须锚度量参考=物理约束；无图派(DualVLN/NaVILA)即插即用只做米级，我们的卖点=精度随建图渐进升级。build_colmap_session只吃`_colmap_joint<tag>`→流水线用软链trick适配不改源码。
+- **下一步**：训完→oracle探针(转弯应恢复)→smoke10→300ep；部署侧=P-1 frontier接test_env仿真闭环(覆盖率>85%)；缺口=targets自动生成/场景图泛化/untwist泛化。
+- **卡点**：M0/M2双ckpt特征构造等R2R快脑定型后一次做对；机器load高(149/80核)。
+
+## 2026-08-29(午) —— 断连恢复三件套 + T5 e2e训完+部署+smoke10(SR10/OSR40)+300ep开跑
+
+- **做了什么**: ①断连杀光进程后全恢复: Qwen(GPU3)+T1 b78评测续跑(GPU2, resume生效)+T5训练重启。②修今早 transfuser_model_v2.py 手术不完整(forward加text_feature但forward_train/forward_test签名没跟)。③T5训完: **goalnav_r2r_e2e.pt, best val 0.5133**(ep059; goal槽置0条件全走text, 比r2rft的0.364高=任务更难属预期)。④写e2e部署(此前只有训练): our_agent.act_r2r_e2e(BERT[CLS]每episode编一次+status全零[4]vx[6]gamma口径与train逐位一致+stop头每步0.40/2票+卡死检测同v5), our_server --e2e/model_settings.e2e透传。⑤smoke10(同seed0集)跑完→300ep全量开跑(GPU2, 无VLM依赖~90s/ep)。
+- **产出**: `goalnav/runs/goalnav_r2r_e2e.pt`; our_agent e2e模式+our_server --e2e; `r2r_eval/results_our_e2e_smoke10.jsonl`; e2e服务器GPU3:8024。
+- **结论**: smoke10 **e2e SR10/OSR40/SPL0.10/NE7.06 vs r2rft(v5慢脑) SR20/OSR60/SPL0.13/NE6.86 vs v5 zero-shot SR10/SPL0.07/NE7.25**。逐ep分解: 指令条件导航本身work(ep1569 31步真成功; **4条进3m圈=ep1297@0.04/ep915@2.26/ep1596@1.60都没停**, stop修好SR可到40)——但**stop头每步评裸奔暴露双向误诊**: 5条假停(ep799第5步8.6m外停/ep1606 11步, v5里同ep曾57步成功因头被地标上下文门控) + 3条近目标不停(0.04m反而OOD)。e2e无VLM=免疫robo2vlm宕机+快3倍, 是干净对照。
+- **下一步**: 300ep出诚实对照数字(vs r2rft 300 SR5.3-5.9); stop通路改法候选=步数门/轨迹幅度当e2e原生stop信号/头补"贴脸目标"训练帧; T1 b78评测明早收。
+- **卡点**: GPU只剩2+3(0/1/4/5=NingZijian, 6/7=WuKefei, WangBizi又挤2/3共120GB); robo2vlm仍宕。
+
+
+## 2026-08-29(午后) —— e2e 300ep落盘(SR3.3, 82%假停实锤) + stop头阈值/票数调参证伪 + 轨迹幅度判停
+
+- **做了什么**: ①e2e 300ep(stop头每步评0.40/2票)全量收: **SR3.3/OSR10.7/SPL2.6/NE9.75/步中位66**。②失败分解: **假停247/300=82%(163条<100步) / 进3m没停22条(潜在SR+7.3)**——stop头每步评估把逐帧假阳性复利放大(v5里被地标上下文门控只评几十次, e2e评500次)。③参数化stop_thr/stop_votes→smoke10测3票: **SR10→0更差**——ep799第6步(8.6m外)连3票照假停(头分数时间平滑=连发不独立), ep1569真到点(0.36m)反而凑不满3票漏停。阈值/票数调不出工作点=**头的置信区分能力在特定远景视角有不可约混淆区**。④改**轨迹幅度判停**(stop_mode=traj): oracle轨迹终点监督→近目标预测位移自然收缩=e2e原生到达信号, 末waypoint位移<0.5m连续2票→停, 判停移到轨迹计算之后。smoke10跑中。
+- **产出**: `results_our_e2e_300.jsonl`(300ep); our_agent/our_server stop_thr/stop_votes/stop_mode/stop_eps参数化; `results_our_e2e_v3_smoke10.jsonl`(3票对照)。
+- **结论**: ①e2e基线(头判停) SR3.3 vs r2rft 5.3-5.9 vs v5+stop头 5.4——但**这个数字量的是stop头假射率不是策略导航力**(OSR10.7 vs r2rft 15.9-17才是策略差距, 且82% ep被提前掐死步数中位66 vs r2rft 234)。②**stop头在e2e每步评估下无工作点**(2票假停83%/3票真停漏光, 时间平滑使连续票不独立=投票机制失效)——这是"同样的头在v5门控下好用"的反面实证, 判停信号必须与任务进度上下文耦合。③轨迹幅度是e2e范式判停的正解方向(训练信号原生, 零额外模块)。
+- **下一步**: traj-stop smoke→若假停死光且真停存活→300ep重跑定版; 若eps=0.5工作点不行→扫eps或回到"traj+头AND门"。
+- **卡点**: 同前(GPU 2+3; robo2vlm宕)。
+
+
+## 2026-08-30(凌晨) —— LH-VLN官方test T1全量收: zero-shot ISR3.55/CSR2.81 全面超DualVLN
+
+- **做了什么**: T1 b78 全量跑完(403ep/15h, Qwen单后端)→按官方 test 口径(batch_7+8, n=397, 排4崩溃+2测地inf, DualVLN同规则同集)官方 NavigationMetrics 复算; DualVLN 444 全量里切出 b7+8 子集同口径对照。
+- **产出**: `docs/评测_LH-VLN官方test_T1全量_0830.md`; `our_eval/results_t1_b78.jsonl`。
+- **结论**: **官方 test 上 zero-shot 全面超 VLN-CE 训练过的 DualVLN: SR0.25:0.00 / ISR3.55:2.62(+35%) / CSR2.81:1.34(翻倍) / CGT1.42:1.15 / TAR22.15:21.98; NE 11.75:10.87 略逊**(锁错实例)。vs FantasyVLN(训练过) ISR 11.01 仍差距大=诚实定位。这是**首个官方 test 单一口径全量**(0827 的 n=437 是 6/7/8 合并), 论文报数以此为准。T1 接地头(head 优先+Qwen 仅 OOV 兜底)全链 15h 无故障。
+- **下一步**: 用户定 T5 stop 路 A/B/C; robo2vlm 恢复后 R2R 重跑; 周报素材(官方 test 表+e2e stop 三变体证伪)。
+- **卡点**: 无新。
+
+
+## 2026-08-29(凌晨) —— T1接地头端到端打平(诚实负结果)+GDINO对照自训头全胜+R2R 300ep补齐+转向T5
+
+- **做了什么**: ①T1接地头集成三修(vantage探索/近距absent信头/子任务清缓存)后 val(batch_6) 端到端对照: **T1v3 ISR3.7/NE12.90/153步 vs P0(robo2vlm) ISR3.7/NE11.76/42步=打平**。②GroundingDINO-base zero-shot 同集(300 val帧)对照: P0.16/R0.60/cerr0.230/IoU0.142 vs **自训头 P0.25/R0.60/cerr0.118/IoU0.359** vs Qwen P0.50/R0.02/cerr0.50——自训头全面最优。③R2R 300ep 补齐: habitat reset 迭代器对齐坑(第一轮 topup 白跑 42 条重复)→显式 `env.episodes=[ep]` 修复→**终版 n=300 SR5.3/OSR17.0/SPL3.1/NE9.64**(Qwen 顶班 61 条 SR0 拉低, robo2vlm 段 SR5.9)。④Qwen 当 R2R 慢脑实测显著弱于 robo2vlm(SR 0/61 vs 14/239)。
+- **产出**: our_agent vantage/门控/清缓存三修; `eval_grounding_dino.py`; run_r2r 显式对齐 resume; R2R 文档终版数字; `训练强化计划_0828.md` 增补(负结果+GDINO 表)。
+- **结论**: ①头的离线优势(R0.60/cerr0.118)没转化成端到端收益——**接地"够用"后瓶颈=房屋级探索策略**(77%失败=目标在其他房间, 局部 vantage 不是过厅找门的搜索; head/VLM 类级检测锁错实例依旧); ②域内监督>通用开词表检测(GDINO); ③**T5(指令/子任务条件 IL)从消融升为主线**: oracle 轨迹教"怎么搜", R2R 快脑微调 OSR 翻倍已证此路, BERT/cond 注入点(_cond_offset)全备好。
+- **下一步**: T5 指令条件 IL 训练(R2R 4000ep 数据已在盘, BERT text_proj→_cond_offset)→R2R smoke/300 对照; LH-VLN 侧子任务条件(target+room)探索策略同法; robo2vlm 恢复后 R2R 全量重跑(摆脱 Qwen 顶班损耗)。
+- **卡点**: robo2vlm 仍宕; 6/7 卡不用。
+
+## 2026-08-28(下) —— 对齐FantasyVLN路线落地: R2R快脑微调smoke四项全升(SR10→20/OSR10→60) + LH-VLN P0几何直停
+
+- **做了什么**: ①用户定调"有官方数据必用官方+训练集不测试+看别人怎么写"→查实**官方split铁证**(configs/lh_vln.yaml: train=batch_1-5/val=batch_6/test=batch_7+8), FantasyVLN ISR11.01=训练过的数字(消融表为证), 我们zero-shot 4.25已居公开榜第二。②LH-VLN适配数据(gen_adapt_data_lhvln.py, 回放batch_1-5 oracle轨迹, 604ep/42.3k帧, pos=habitat(x,y,z)/st_task start-end切段口径探针实证)→stop头训练(AUC仅0.65, 小物体信号太弱, **弃用留档**)。③**转化缺口分析**(437ep逐子任务): NE<1m的56个50成功(几何直停可靠)/NE1-2m 54个0成功/77% NE>5m(实例接地); 官方判据=**仅geo_dis<1m**(simulation.py:110, 无FoV要求)。④LH-VLN P0改**2.5m逐步重定位精化+几何直停**(弃VLM confirm), 关键修=**子任务切换清target_world缓存**(否则秒假停steps=[9,1,1], 旧confirm否决路径其实是隐性保护)。⑤**R2R快脑微调**(train_goalnav_r2r.py: 复刻train_goalnav管线, 6666样本/59场景hold-out, warm-start v4, val 0.364)→smoke10。
+- **产出**: `train_goalnav_r2r.py`(featurize带缓存/val须train()模式+no_grad=扩散头只在train算loss); `goalnav_r2rft.pt`; `gen_adapt_data_lhvln.py`+`adapt_lhvln/s0-s2`; `runs/stop_head_lhvln.pt`(弃用留档); our_agent P0/P1改动。
+- **结论**: ①**R2R快脑微调显著有效**: smoke10 **SR 10→20/OSR 10→60/NE 7.25→6.86/SPL 0.07→0.13**, min_dtg 5.25→3.78(ep1469到0.38m/ep915到2.78m=微调前从未靠近)——域适配收益实锤, 剩余SR-OSR缺口(20 vs 60)=STOP通路仍拖后腿(ep1469到0.38m没停走飞); ②LH-VLN P0 val(batch_6): ISR 2.8→3.7/步数238→42(快5.7×), NE<1m转化4/4=100%, 但NE1-2m 6个仍0成功(锁点落在物面, geo_dis判到中心+snap), 试0.65m逼近阈值(p1)中; ③瓶颈未变=实例接地(NE>5m占76%)。
+- **下一步**: R2R 300ep微调版全量(跑中); p1(0.65阈值)batch_6对照→定版后跑test batch_7+8全量; 实例接地(P2)是唯一剩余大杠杆。
+- **卡点**: 无(6/7卡不用, 全在GPU2+3)。
+
+## 2026-08-28(早) —— R2R 300ep 全量落盘(n=296): Ours 5.4 vs DualVLN 59.1, 主场结论定稿
+
+- **做了什么**: 300ep 跑至 296/300(用户 08:50 要求让出 6/7 卡停跑, 后 4 条未跑)→与 DualVLN **完全同集**(sample seed0 val_unseen)对照→增补进 `docs/评测_DualVLN_R2R_baseline_0825.md`。GPU 6/7 我们进程全清(现占用者=WuKefei 训练, 与我们无关)。
+- **产出**: `r2r_eval/results_our_stophead_300.jsonl`(296ep); 同集对照表: **Ours(v5慢脑+stop头 zero-shot) SR5.4/OSR8.4/SPL4.0/NE9.32/215步 vs DualVLN(R2R训练) SR59.1/OSR68.2/SPL52.6/NE4.38/120步**。
+- **结论**: R2R=DualVLN 主场(它在该任务训练), 我们 zero-shot 个位数属预期; 失败主因=实例级接地(多数 ep min_dtg 未进 3m), stop 头只治"停"不治"找错目标"。**我们的优势战场是 LH-VLN**(0827 全量四项全超 DualVLN)——两条评测线叙事定稿: LH-VLN 比增量(zero-shot 即超), R2R 做诚实对照暴露接地短板=下一步改进方向。
+- **下一步**: 实例级接地改进(场景图/多视消歧, 或 stop 头式"接地头"监督); 剩余 4 条 R2R ep 有卡时可补跑; LH-VLN 全量结果等用户验收后可写进周报。
+- **卡点**: 6/7 卡暂不可用(用户指令, 现 WuKefei 占用)。
+
+## 2026-08-27(晚, 自动模式过夜) —— LH-VLN全量我们zero-shot四项超DualVLN + stop头路B全链推进
+
+- **做了什么**: ①汇总白天跑完的 LH-VLN our_eval 全量(b6/b7/b8a/b8b 共 444ep 全覆盖)→与 DualVLN **同 437 有效集**(444 按同一规则排 7 条数据侧不可跑, 取两结果集 valid 交集)官方 NavigationMetrics 复算。②R2R stop 头(路B): 修 gen_adapt_data(0826 深夜崩于 `env.sim.snap_point`→`pathfinder.snap_point`)+4 片×500ep 并行生成(GPU7, 2000ep/~19k 帧, 每 ep 3 正例+3-4 goal 周边 3-5m 硬负例)→训练两连修(fc 1000 类形状不符剔除 / **首训 valAUC 仅 0.61=标签噪声实锤**: 近 goal 但背对 goal 的正例帧与易负例视觉不可分→正例加视向 ±60° 过滤+LR 上调)→**valAUC 0.74**, 距离分段单调(dtg<1.5m 均分 0.42 vs 3-6m 0.17)。③stop 头集成 our_agent(`stop_head_prob`+`_confirm_stop` 优先用头每步评, 2 票制, VLM confirm 留 fallback)+our_server 传参; 重启服务器(GPU3, 旧进程是 8月25 启动的旧代码)。④释放 GPU6(kill 闲置 DualVLN server, 用户要求明早腾出)。
+- **产出**: `docs/评测_我们方法_LHPR-VLN全量_0827.md`; `our_eval/results_our_merged.jsonl`(444ep); `adapt_data/s0-s3`(2000ep); `runs/stop_head_r2r.pt`(AUC0.74); our_agent/our_server stop 头集成; 全量对照表: **Ours zero-shot ISR4.25/CSR3.03/CGT1.95/TAR26.25/NE11.73 vs DualVLN ISR2.98/CSR1.43/CGT1.28/TAR22.20/NE10.93**(SR 双方全 0, 与榜单格局一致)。
+- **结论**: ①**zero-shot 即超在 VLN-CE 训练过的 DualVLN**(ISR+43%/CSR 翻倍), NE 略逊=锁错实例走更远, 瓶颈仍是实例接地+STOP 非运动控制; ②stop 头单帧判"距 goal<3m"是弱信号任务(正对 goal 才部分可分), 阈值扫描 P@0.5=0.42/R=0.40——部署处在"已到终地标附近"的强先验下查询, 实战价值待 smoke 验证; ③smoke10 首试 thr=0.55 **翻车**: 阈值高于近距均分 0.42→永不判停, ep1606 min_dtg 1.10 走满 500 步 NE14.72(v5 同 ep 101 步成功 NE2.90)→降 thr=0.40 重跑中。
+- **下一步**: smoke10(thr0.40)对照 v5(SR10%/NE7.25)→提升则 R2R 300ep 全量过夜(同 DualVLN seed0 子集 SR58.7); 备选增强=距离回归头替代二分类/stop 头与几何 dist 联合判停。
+- **卡点**: stop 头绝对精度有限(P 天花板 ~0.6), 若 smoke 仍不如 v5 则退回"几何 dist<1.5m 直通+stop 头仅否决"的混合判停。
+
+## 2026-08-26 —— R2R慢脑五代迭代(v0→v5): 复读病根因实锤→地标链重构, smoke SR 0→10%破零
+
+- **做了什么**: 诊断 R2R smoke 全败(v0 SR=0)。diag_r2r_our.py 进程内单 episode 逐步实录+轨迹图, 五代慢脑迭代: v1 加到达事件/STOP confirm→**复读病换皮**(GOTO复读206次→TURN复读492次/FORWARD复读61次, min_dtg 0.59 走过头); v2 **弃多选改地标链**(指令两问解析终点+中途地标→逐地标 bbox 定位→链尾 confirm)=回归 robo2vlm 甜区(bbox+yes/no), 导航到 min_dtg 0.04m 但"指令完成了吗"元问题 confirm 站 GT 上 7cm 连答 52 次 no; v3 目标超时放弃+周期刷新; v4 confirm 改接地近距问→假停(第2步停 NE5.03/假定位瞬达); v5 定位两帧世界系复核采信+confirm 2票+解析两问。smoke10(与 v0 同 episode 集, sample seed0)经 our_server+run_r2r 跑完。
+- **产出**: `our_agent.py` v5(act_r2r 地标链慢脑: parse_chain/两帧定位复核/目标45步超时/末地标近距confirm/skip+换视角探索); `r2r_eval/results_our_v5_smoke10.jsonl`; `diag_r2r_ep{0,1}_v{0..5}.*` 实录; `docs/评测_DualVLN_R2R_baseline_0825.md` 增补五代表; DualVLN R2R 300ep 终版数字落盘(SR58.7/SPL52.2/OSR67.7/NE4.48)。
+- **结论**: ①**robo2vlm 多选一决策根本不可用**(复读自己最近输出, 换 prompt 只换复读内容), bbox+yes/no 甜区再次验证=慢脑定式; ②快脑+几何全程无责(v2 起多次 min_dtg<0.5m), 瓶颈全在 STOP 通路与 VLM 实例级接地(bbox中心锁水面中央偏3.5m/锁错桌实例); ③**v5 smoke SR 0→10%/NE 9.15→7.25/平均步数 500→161**(ep1606 停 101 步 NE2.90 首个完整成功), vs DualVLN 同链 ~60 仍差距大但纯机制迭代未训练。
+- **下一步**: 用户定方向——R2R 继续(300 子集对照/接地改进) 或转 LH-VLN our_eval 全量 437ep(zero-shot NE 已≈DualVLN, ISR 11.1% smoke 底子在, 是我们更有利的战场)。
+- **卡点**: 共享集群抢卡; our_server 跑完即 kill 释放(已执行)。
+
+## 2026-08-25 —— LH-VLN全量跑分落盘 + 立项B(R2R)链通 + our_eval/our_server 搭好
+
+- **做了什么**: ①LH-VLN 全量 DualVLN 评测收尾: 444ep 跑完(含 run_topup.py 补跑 8 条)→排除 7 条数据侧不可跑(5 条 HM3D 语义网格缺小物件几何 obj_centers 提不出 + 2 条 GT 测地 inf)→**有效 n=437, 官方口径复算 SR=0/ISR=2.98/CSR=1.43/CGT=1.28/TAR=22.2/NE=10.93**(compute_metrics.py 官方 NavigationMetrics 原样), 与"全场 SR=0、FantasyVLN ISR=11 最好"的榜单格局一致=链可信。②立项B(R2R): mp3d_r2r 数据备齐, 写 agent 无关客户端 run_r2r.py(habitat 官方 vln_r2r.yaml+官方 measurements+InternNav AgentServer 协议), DualVLN baseline 300ep(seed0 抽自 1839)跑完 6.7h。③我们方法两侧冒烟: our_eval/our_agent.py(VLM-WHERE bbox定位+几何反投影 goal_ego+条件DD快脑, habitat→我们坐标系探针实证 y=-hab_z 否则镜像/floor=position.y)+标准化 our_server.py(InternNav 协议兼容, target 与 instruction 双模式)。
+- **产出**: `docs/评测_DualVLN_LHPR-VLN全量结果_0825.md`; `benchmarks/LH-VLN/dualvln_eval/{results_merged.jsonl,compute_metrics.py,run_topup.py}`; `benchmarks/InternNav/r2r_eval/{run_r2r.py,results_dualvln_300.jsonl}`; `benchmarks/LH-VLN/our_eval/{our_agent.py,our_server.py,run_our_eval.py,probe_our.py}`。
+- **结论**: DualVLN R2R 实测 **SR58.7/SPL52.2/OSR67.7/NE4.48**(官方全量 64.3/58.5/70.7/4.05, 300 子集合理偏低)=R2R 链可信, 对照用 300 子集同 seed。我们 zero-shot(goalnav_gate_lab_v4.pt): **LH-VLN 侧先实锤两个坐标系 bug**(平面镜像须 y=-hab_z/floor=position.y 勿再减 SENSOR_H; 另修卡死只计前进帧/目标点等比预缩/VLM locate 加 room 消歧), smoke1 ISR0/TAR9% → **smoke2 ISR11.1%/TAR30.5%**(真导航 d3.7→0.5 到位 stop, 参照系=DualVLN 全量 ISR 仅 2.98); 剩余失败=锁错实例+探索弱。**R2R 侧 v0 smoke10 全败 SR=0/OSR10/NE9.15 撞 500 步上限**, 机制全通但慢脑指令跟踪是最简实现=最弱环, 待诊断。
+- **下一步**: 0826 诊断 R2R 失败根因(diag_r2r_our.py)→修到 smoke 非零再子集对照; LH-VLN our_eval 全量 437ep 待排。
+- **卡点**: 共享集群抢卡; 跑评测须 lhvln env。
+
+## 2026-08-24 —— DualVLN×LHPR-VLN评测链: HM3D镜像数据搞定 + 模型服务器冒烟PASS
+
+- **做了什么**: 接0821调研与0822用户已备的benchmarks/(LH-VLN+InternNav仓库、InternVLA-N1-DualVLN权重、lhvln env、episode数据), 把DualVLN baseline评测链搭到冒烟通过。①HM3D卡点破解: Matterport注册页403(墙)→hf-mirror找到**免token完整镜像zhuhu00/hm3d**(官方tar格式), 核对全部8个batch共153个场景被镜像(145 train+36 val)100%覆盖→后台下载43GB+自动解包流水线(解到LH-VLN/data/hm3d/{train,val}+生成根级合并scene_dataset_config)。②internvla env从零建(py3.10+torch2.8cu128+transformers4.51+flash_attn 2.8.3预编译轮abiTRUE+diffusers降到0.32.2修LuminaNextDiT gradient_checkpointing签名冲突+setuptools钉80.9.0因≥81删了pkg_resources+软链checkpoints)。③写适配层: LH-VLN/dualvln_eval/run_eval.py(纯HTTP客户端复刻AgentClient协议免装internnav/复用官方SceneSimulator+NavigationMetrics/动作映射0stop 1fwd 2left 3right/-1 noop防死锁)+InternNav服务器配置lhvln_dualvln_server_cfg.py(512×512 hfov90对齐LH-VLN前视/partial_async)。
+- **产出**: `benchmarks/LH-VLN/dualvln_eval/{run_eval.py,smoke_client.py}`; `benchmarks/InternNav/scripts/eval/configs/lhvln_dualvln_server_cfg.py`; `benchmarks/hm3d_tars/{dl.sh,extract.sh}`; visualization.py的PyQt5改optional补丁。
+- **结论**: 模型侧全链冒烟PASS(init 132s加载16G, S2首步9.1s, S1后续0.1s/步)。**端到端也通且目标真值已修正**: ①镜像缺scene_instance→`.semantic.txt`硬链成`.basis.scn`修复SSD加载; ②habitat 0.3.1认不出.semantic.glb(只找*_semantic.ply)→aabb全0→测地距离全撞同一点(症状nav_err[i]恒=gt_path[i+1]), 解法=extract_obj_centers.py从semantic.glb顶点COLOR_0(uint16 linear→sRGB EOTF)聚bbox中心; ③HM3D glb是z-up(orient_up=(0,0,1))→world=(x,z,-y), 漏转目标全埋地下5m。修后box测地2.84m/snap正常/nav_err逐子任务不同。⚠口径caveat: DualVLN按15°转角训练 vs LH-VLN官方30°动作空间; 无抓取→Grab/Release子任务天然失败。
+- **下一步**: ~~HM3D下完~~→~~自动解包~~→~~batch_6冒烟~~→**全量评测已开跑(batch_6/7/8共444ep, 后台bp5gc5b3z, 约6h)**; 结果落dualvln_eval/results_full_b678.jsonl后汇总写对照文档。对照数字已备(FantasyVLN SR2.44/ISR11.01/CSR9.64/CGT8.99, 其余含MGDM全SR=0——DualVLN的SR=0是好公司, ISR/CSR/TAR/NE才是区分度)。用户定评测策略两原则: 跟DualVLN比要去它的主场VLN-CE R2R(需移植我们方法, 立项B); 用某评测就跟该评测已有数字比(引FantasyVLN/MGDM同口径)。
+- **卡点**: 共享集群抢卡(服务器模型只在单卡, 被挤就要换卡重启——注意换卡必须重启服务器否则重复加载OOM)。
+
+## 2026-08-21 —— 论文 baseline/benchmark 三轮调研 + 全模块技术盘点
+
+- **做了什么**: ①用户要"继续调研，重点论文baseline和benchmark"→deep-research×3轮(共314agent/319声明/75条三票对抗验证, 69过6杀); ②用户七问盘点(单双目/ZED→3DGS创新点/baseline对照/场景图边界与更新/GT来源/VLM对比/DiffusionDrive改动量)+论文定位定稿(主题=具身机器人高精度定位与任务目标导航, 创新点20%目标表征+60%粗导航+20%精定位, **场景图留作另一篇**)→5路代码盘点agent全仓库核实(全带行号)。
+- **产出**: `docs/调研_baseline与benchmark_0821.md`(benchmark=LHPR-VLN命名更正+GOAT-Bench/baseline=DualVLN+NavDP可复现/RELOC两铁证撑双闸门/语义可控性协议骨架=ControlNet++回读+P/R线+ICML2025 sanity checks/真机轻量协议先例); `docs/论文盘点_模块技术与创新点_0821.md`(七问全答: 单目+SDK深度,右目hq5lr证伪/每块沿用-改进-创新表/DD改动=新机制7+模块级8+配置级6/场景图四问/GT清单/VLM对比计划/20-60-20映射/诚实风险6条)。
+- **结论**: 组合创新(语义可控扩散快脑+RELOC周期纠偏+真机全链)在已核实文献版图无竞品; "同目标换条件→轨迹分布变"在任何主流benchmark未被量化=空白可填; ⚠写作纪律=BEV±32m没改勿声称改了/GSplatLoc两篇同名勿踩/右目不是没用是实验证伪。
+- **下一步**: 用户审盘点文档; 剩余缺口=VLN-CE官方榜数字/NoMaD真机协议细节/Diffusion Policy多模态实验精读/Habitat接口代码(零落地)。
+- **卡点**: 真机无GT(无odom无mocap)是评测最短板, 建议AprilTag+卷尺终态协议或上公开benchmark借仿真器GT。
+
 ## 2026-08-19 —— 架构整合文档 + 真机部署方案文档
 
 - **做了什么**: 用户要两份文档：①当前架构整合 ②真机部署怎么做。三路事实核查(仿真全链源码+outputs产物/robot_control_current运控+robot_orig_code已部署DiffusionDrive/docs现有文档盘点)后写就。
@@ -796,3 +895,33 @@ PYTHONPATH=third_party/discoverse ~/discoverse_venv/bin/python scripts/sim_walk_
 - **06-16（周二）**：ROS2/RoboStack 装 octomap 对比，从前视数据出占据图“一坨”，证伪“换标准工具就干净”；COLMAP CPU 匹配崩溃修复（`OPENBLAS_NUM_THREADS=1`+brute force）。
 - **06-15（周日）**：重建实战发现——只有 142522/114830 适合做室内地图；111450 无里程计只能轨迹回放；朝向须 gyro 投影到重力轴；distance 传感器无效。早期用 **gsplat** 训过 3DGS（`gs_111450.ply`）。
 - **06-14**：搭 `robot_bev_sim` 脚手架；发现真实数据是 ROS2/RealSense D405（rosbag+JPG+imu），与文档假设的逐帧 PNG 完全不同。
+
+## 2026-08-31 —— R2R追平立项: 差距诊断=训练投入 + ⭐大发现快脑不会转弯(数据分布缺陷) + 稠密jitter数据6片开跑
+
+- **做了什么**: ①用户定调"R2R必须追平甚至超越DualVLN"→失败结构分解(r2rft 300ep: min_dtg<3m仅17% vs DualVLN 68%; 5-10m偏航53%=主矛盾; stop只值7个SR点)。②DualVLN配方调研(84k token): S2=Qwen2.5-VL-7B全量微调≈百万样本/64卡, 4种相机形态增广, stop=S2输出文本末帧监督×5上采样无独立头 → 差距=训练投入(我们6.6k样本)非架构。③**Phase0 oracle探针(probe_oracle_goal.py, GT前瞻4m目标+几何停): r2rft 18/18全500步失败 → 逐步debug实锤快脑不会转弯**: goal在右前39°模型输出恒直线wz≈0, 40步航向0变化。④根因定位: gen_adapt_data teleport回放每帧朝向=yaw_towards(下一路径点)→训练分布ego系未来路径恒为直线→模型学成"永远直走", goal_ego条件被忽略(部署时v5慢脑显式turn动作掩盖)。⑤写gen_dense_data.py(0.25m稠密插值~40帧/ep+70%±25°/30%±120°朝向jitter+横向±0.2m)重启6片生成(GPU2+3, ~11h); 写train_goalnav_r2r_dense.py(流式: BEV预计算bevs.npy fp16增量累积, rgb训练时解码; 旧全量缓存400k样本=680GB不可行)。⑥HFOV失真一并修(90→79, 训练/部署同为90故隐性, R2R渲染是79)。⑦InternData-N1官方数据尝试: HF gated 403/ModelScope残缺→全自渲染路线。
+- **产出**: `gen_dense_data.py`+6片跑中; `train_goalnav_r2r_dense.py`; `probe_oracle_goal.py`; memory r2r-catchup-diag-steering-0831。
+- **结论**: ①**R2R 5.3 vs 58.7 = 训练投入差距(100x数据+微调慢脑), 链本身无问题**(DualVLN我们链上repro 58.7已证)。②**条件通道必须有数据分布支撑才生效**(goal_ego被忽略=0803 mode位休眠同源教训)。③旧"r2rft微调OSR翻倍"结论要重新解读: 提升来自近goal帧见过的域适配, 不是真会导航。
+- **下一步**: 6片收→precompute BEV→重训→oracle探针复测(转弯应恢复)→smoke10→300ep; s6/s7补2701ep; Phase2慢脑微调(Qwen2.5-VL-7B基座待下, 7B全量vs3B/LoRA待定)。
+- **卡点**: 8卡全被他人占, 我们用GPU2+3缝隙(各~20GB); robo2vlm仍宕。
+
+## 2026-08-31(晚) —— oracle探针终版: r2rft SR=0/OSR=10 快脑转向残疾定量实锤
+
+- **结果**: probe_oracle_r2rft 50ep(GT前瞻4m目标+1.5m几何停, 排除慢脑/stop两变量): **SR=0.0/OSR=10.0/NE=9.99, 50/50全撞500步**。比部署版(v5慢脑, OSR17)还差=慢脑显式turn动作确实在替快脑打补丁, "快脑不会转弯"定量坐实。
+- **dense进度**: 6片~27%(360-380/1353 ep, 已8.7万帧), ETA ~00:10; s6/s7未补(GPU6/7仍WuKefei占)。
+- **下一步**: dense收→precompute BEV→重训→oracle探针复测(判据: OSR应大幅回升, 航向能跟随goal)。
+
+## 2026-09-02 —— ⭐转弯接缝bug实锤(用户直觉) + dense快脑oracle SR 0→62 + 部署smoke10 A/B
+
+- **做了什么**: ①用户质疑"不会转弯是不是我们改造出的问题"→写offline_turn_probe.py(训练管线自身输入,绕开全部部署接缝)分层判决: 旧r2rft方向一致86.5%但幅度7.8°(GT44.8°,数据病真)/新dense 96.5%一致+41.6°满血(重训成功); 但两ckpt经traj_to_control量化出turn都0/230(yaw通道输出≈0,转向全在横向位移被R2R无strafe动作空间丢弃)=部署接缝假阴性实锤。②连带bug: our_agent HFOV=90 vs dense训练79。③修复: our_agent加_traj_to_act(末端弯曲角±15°)+hfov实例参数; our_server透传hfov; probe同步修。④oracle探针复测50ep: dense SR62/OSR66/NE3.53 vs r2rft SR2/OSR18(对照,同接缝)=数据病+接缝病同时坐实。⑤部署链smoke10 A/B(本地Qwen VLM代robo2vlm): dense SR10/OSR30/NE9.97/SPL0.061 vs r2rft SR10/OSR20/NE10.03/SPL0.042。
+- **结论**: ①快脑已不再是瓶颈(oracle 62, 参照DualVLN全链58.7,不对等但说明上限)。②部署层瓶颈回到慢脑+stop: 7/10两臂共同os=0(部分ep NE逐位相同=慢脑脚本化行为主导), dense ep2/ep4明显优于r2rft, ep9 r2rft停住dense没停(stop头对dense待查)。③⚠混淆变量: robo2vlm仍宕, 本地Qwen3.5跑v5地标链不在甜区(scan miss 8/8 skip landmark), 慢脑被Qwen降级。
+- **下一步**: 慢脑层修复(robo2vlm恢复重测 or Phase2微调)才能兑现快脑增益; dense 300ep待拍板; stop头对dense ckpt复查; e2e模式的同款wz量化未修(独立实验)。
+- **产物**: offline_turn_probe.py; probe_oracle_dense_v2/r2rft_v2.jsonl; results_our_dense_smoke10.jsonl; results_our_r2rft_smoke10_v2.jsonl; memory r2r-turn-seam-bug-0902。
+
+## 2026-09-02(晚) —— ⭐薅DualVLN慢脑混合体SR70 + 四方配对对照 + Infinite VLM复活实测
+
+- **做了什么**: ①dualvlm_slow_server.py(InternVLA-N1 S2 4bit, internvla env)+run_r2r_hybrid.py(像素目标depth反投影→世界目标缓存→dense快脑bend量化), 慢脑HTTP解耦跨env。②发现habitat env.episodes顺序进程间不确定→run_r2r.py/run_r2r_hybrid.py都加--ep_ids锁配对。③配对10ep四方对照(同一批ep)。
+- **四方配对结果(同10ep)**: v5+dense(Qwen) SR10/OSR30/NE9.97 | v5+r2rft(Qwen) SR10/OSR20/NE10.03 | v5+dense(Infinite复活) SR0/OSR10/NE9.56 | **DualVLN慢脑+dense快脑 SR70/OSR80/NE4.08/SPL0.522**。hybrid随机10ep另测SR60/OSR60/NE2.22。
+- **结论**: ①瓶颈100%在慢脑实锤——同快脑只换慢脑SR 10→70, 混合体达DualVLN全系统(58.7)量级。②v5零样本地标链(无论Qwen还是Infinite VLM后端)在这批ep上都不work, prompt工程路线到顶了, Phase2慢脑微调是唯一正路。③Infinite VLM复活但v5链上SR0(一轮还踩了VLM_URL指向被kill的本地Qwen的坑, 二轮显式指10.0.0.18)。
+- **坑记**: ①跨进程评测子集必须--ep_ids显式锁; ②VLM_URL默认值已变成127.0.0.1, 远端必须显式传; ③InternVLAN1Net构造要走get_config; depth_anything ckpt相对路径要求cwd=InternNav根。
+- **下一步**: Phase2慢脑微调立项(dense_data切(观测,指令)→决策监督样本, 7B全量vs3B/LoRA待定, 基座权重待下); hybrid 300ep全量可挂(DualVLN慢脑+我们快脑=当前最强形态, 论文对照行); robo2vlm需用户找管理员重启服务(机器活服务死→现已复活)。
+- **产物**: dualvlm_slow_server.py; run_r2r_hybrid.py(--ep_ids); results_hybrid_smoke10/paired10.jsonl; results_dense_robo_paired10.jsonl; Qwen-RobotNav对标表(Table1 monocular R2R SR66.9(4B)/65.7(8B), panoramic72.1, 权重未开源)。
