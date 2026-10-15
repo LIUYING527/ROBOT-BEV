@@ -46,6 +46,45 @@ HFOV = 79.0          # ⭐与R2R渲染/评测一致(旧90为失真)
 GOAL_AHEAD = 4.0
 T, DS = 8, 0.2
 
+# ⭐1015: 训练 text_proj 用慢脑 latent。PWS_HID_FILE=<前缀> ⇒ 读 <前缀>.npy + <前缀>.index.jsonl,
+#   按 (shard, episode_id, fi) 查表(采数见 collect_hidden_r2r.py)。
+#   默认不设 ⇒ 完全走旧路径(指令编码) ⇒ 行为逐位不变。
+#   注意: 用 latent 时必须同时设 PWS_TEXT_DIM=2048, 否则 text_proj.in_features 对不上。
+_HID_CACHE = {}
+
+
+def _hid_table():
+    pfx = os.environ.get('PWS_HID_FILE', '')
+    if not pfx:
+        return None
+    if pfx not in _HID_CACHE:
+        arr = np.load(pfx + '.npy')
+        tbl = {}
+        with open(pfx + '.index.jsonl', encoding='utf-8') as f:
+            for i, ln in enumerate(f):
+                ln = ln.strip()
+                if ln:
+                    r = json.loads(ln)
+                    tbl[(r.get('shard', ''), str(r['episode_id']), int(r['fi']))] = i
+        _HID_CACHE[pfx] = (arr, tbl)
+        print(f'[hid] 载入 {pfx}.npy shape={arr.shape} 索引 {len(tbl)} 条', flush=True)
+    return _HID_CACHE[pfx]
+
+
+def _hid_lookup(sm):
+    """按 (shard, episode_id, fi) 取该帧的慢脑 latent; 未启用或查不到返回 None。"""
+    t = _hid_table()
+    if t is None:
+        return None
+    arr, tbl = t
+    epd = sm.get('epd', '')
+    shard = os.path.basename(os.path.dirname(epd))        # .../s0/ep4991 -> s0
+    ep_id = os.path.basename(epd)[2:]                     # ep4991 -> 4991
+    j = tbl.get((shard, ep_id, int(sm.get('fi', -1))))
+    if j is None:
+        return None
+    return torch.from_numpy(arr[j].astype(np.float32))
+
 
 # ---------- 自包含几何(numpy only, 与 our_agent 逐行一致, 仅HFOV改79) ----------
 def quat_wxyz(qxyzw):
@@ -353,7 +392,10 @@ def mode_train(cli):
             sm = self.samples[self.idxs[i]]
             # ⭐0930 语义条件: 指令 -> 768 维固定向量(喂 DD 的 text_proj)。
             #   无论开关如何都照常返回, 保持样本元组形状稳定; 只是 PWS_TEXT=0 时不传给模型。
-            _tx = torch.from_numpy(instr_feature(sm.get('instr', '')))
+            # ⭐1015: PWS_HID_FILE 设了则改用慢脑 latent(此时须同时设 PWS_TEXT_DIM=2048)。
+            _tx = _hid_lookup(sm)
+            if _tx is None:
+                _tx = torch.from_numpy(instr_feature(sm.get('instr', '')))
             z = np.load(sm['npz'])
             rgb = cv2.resize(z['rgb'], (1024, 256),  # camera_feature净效果=resize(RGB)
                              interpolation=cv2.INTER_LINEAR)
@@ -589,6 +631,13 @@ def mode_train(cli):
         # ⭐方案A(0908): 只训 goal_mlp(零init), 冻结其他所有 → 最干净验证"goal显式通道能不能救侧向转弯"
         for p in model._trajectory_head.goal_mlp.parameters():
             p.requires_grad = True
+    elif cli.hidproj_only:
+        # ⭐1015: 只训 text_proj(零初始化小投影), 两侧主体全冻结。
+        #   依据 0910 结论:"唯零初始化小模块 + 冻结主体有效"(全解冻 allft_k24 曾 loss 好看但 SR 崩到 3%)。
+        for p in model._trajectory_head.text_proj.parameters():
+            p.requires_grad = True
+        _n = sum(p.numel() for p in model._trajectory_head.text_proj.parameters())
+        print(f'[hidproj] 只解冻 text_proj({_n} 参数), 其余全部冻结', flush=True)
     elif cli.partial_warmstart:
         # ⭐0909: 只训 task_decoder(随机init的cls/reg头), 冻结去噪骨干(warm)+plan_anchor+status_encoding。
         for name, p in model._trajectory_head.named_parameters():
@@ -773,6 +822,8 @@ def main():
                     help='干净训头: 重新构造 trajectory_head(随机init), 不 warm-start 脏 head')
     ap.add_argument('--goalmlp_only', action='store_true',
                     help='方案A: 只训 goal_mlp(冻结其他所有), 最干净验证 goal 显式通道')
+    ap.add_argument('--hidproj_only', action='store_true',
+                    help='⭐1015: 只训 text_proj(零初始化小投影, 配 PWS_HID_FILE + PWS_TEXT_DIM=2048), 其余全冻结')
     ap.add_argument('--full_finetune', action='store_true',
                     help='0911 全解冻: backbone+head+status 全训(仅冻结 plan_anchor), 分层lr')
     ap.add_argument('--lr_backbone', type=float, default=0,
